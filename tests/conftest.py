@@ -19,9 +19,16 @@ def fixture_configure_structlog(log_output):
 
 
 @pytest.fixture
-def amqp_system():
-    amqp_system = AMQPSystem(queue_name="test_queue")
-    # Assert initial configuration
-    assert amqp_system.has_started() is False
-    assert amqp_system._registry == {}
-    return amqp_system
+def amqp_system_creator():
+    def make_amqp_system(*args, **kwargs) -> AMQPSystem:
+        amqp_system = AMQPSystem(*args, **kwargs)
+        # Assert initial configuration
+        assert amqp_system.has_started() is False
+        assert amqp_system._registry == {}
+        return amqp_system
+    return make_amqp_system
+
+
+@pytest.fixture
+def amqp_system(amqp_system_creator):
+    return amqp_system_creator(queue_name="test_queue")

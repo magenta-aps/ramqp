@@ -14,6 +14,27 @@ yarl = "*"
 develop = ["aiomisc (>=15.6.8,<15.7.0)", "coverage (!=4.3)", "coveralls", "pylava", "pytest", "pytest-cov", "shortuuid", "nox", "sphinx", "sphinx-autobuild", "timeout-decorator", "tox (>=2.4)"]
 
 [[package]]
+name = "aiomisc"
+version = "15.7.3"
+description = "aiomisc - miscellaneous utils for asyncio"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+colorlog = "*"
+
+[package.extras]
+aiohttp = ["aiohttp"]
+asgi = ["aiohttp-asgi"]
+carbon = ["aiocarbon (>=0.15,<1.0)"]
+contextvars = ["contextvars (>=2.4,<3.0)"]
+cron = ["croniter (>=0.3.34,<0.4.0)"]
+develop = ["aiocontextvars (==0.2.2)", "aiohttp-asgi", "aiohttp (<4)", "async-timeout", "coveralls", "croniter (>=0.3.34,<0.4.0)", "fastapi", "freezegun (<1.1)", "mypy (>=0.782,<1.0)", "pylava", "pytest", "pytest-cov (>=3.0,<4.0)", "pytest-freezegun (>=0.4.2,<0.5.0)", "pytest-rst", "pytest-subtests", "rich", "setproctitle", "sphinx-autobuild", "sphinx-intl", "sphinx (>=3.5.1)", "timeout-decorator", "tox (>=2.4)", "types-croniter"]
+raven = ["raven-aiohttp"]
+uvloop = ["uvloop (>=0.14,<1)"]
+
+[[package]]
 name = "aiormq"
 version = "6.2.3"
 description = "Pure python AMQP asynchronous client library"
@@ -106,6 +127,20 @@ description = "Cross-platform colored terminal text."
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "colorlog"
+version = "6.6.0"
+description = "Add colours to the output of Python's logging module."
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+colorama = {version = "*", markers = "sys_platform == \"win32\""}
+
+[package.extras]
+development = ["black", "flake8", "mypy", "pytest", "types-colorama"]
 
 [[package]]
 name = "distlib"
@@ -452,12 +487,16 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "86b6efd07623960a581cda0e2c322be397feb94ae8d157ef170feb39f1572e95"
+content-hash = "4a6672da09a5bf79a284779dc4633f34275ec916bb5aea4e9eda17c85d6c667a"
 
 [metadata.files]
 aio-pika = [
     {file = "aio-pika-7.1.2.tar.gz", hash = "sha256:b754ba114ce3cfbc5fb444c0d41c5f74f5cfff34c2c87fef3eab0ba796ec3e94"},
     {file = "aio_pika-7.1.2-py3-none-any.whl", hash = "sha256:47fbd996d6ff4a8b1ea0148091b9e056c3a581fd4be863801eba8fce690cd243"},
+]
+aiomisc = [
+    {file = "aiomisc-15.7.3-py3-none-any.whl", hash = "sha256:0403e83268e98d0f2a125a70d13303fe1a2358e36db3daf02df032c7fa4f1525"},
+    {file = "aiomisc-15.7.3.tar.gz", hash = "sha256:ba250a34bd4609ced36111cb50580f57c3d52f3955f953a53ecb2986988baedc"},
 ]
 aiormq = [
     {file = "aiormq-6.2.3-py3-none-any.whl", hash = "sha256:95f0da57edd55f214a2e6c5b7ac98fa58a7c33911acd0d3315e86926b2dd2605"},
@@ -511,6 +550,10 @@ click = [
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
+]
+colorlog = [
+    {file = "colorlog-6.6.0-py2.py3-none-any.whl", hash = "sha256:351c51e866c86c3217f08e4b067a7974a678be78f07f85fc2d55b8babde6d94e"},
+    {file = "colorlog-6.6.0.tar.gz", hash = "sha256:344f73204009e4c83c5b6beb00b3c45dc70fcdae3c80db919e0a4171d006fde8"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},

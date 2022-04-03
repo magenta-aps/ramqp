@@ -10,6 +10,7 @@ from typing import Dict
 from typing import Set
 
 import structlog
+from aio_pika import Message
 from aio_pika import connect_robust
 from aio_pika import ExchangeType
 from aio_pika import IncomingMessage
@@ -52,7 +53,6 @@ processing_calls = Counter(
     ["routing_key", "function"],
 )
 last_on_message = Gauge("amqp_last_on_message", "Timestamp of the last on_message call")
-last_message_time = Gauge("amqp_last_message", "Timestamp from last message")
 last_periodic = Gauge("amqp_last_periodic", "Timestamp of the last periodic call")
 last_loop_periodic = Gauge(
     "amqp_last_loop_periodic", "Timestamp (monotonic) of the last periodic call"
@@ -82,7 +82,7 @@ CallbackType = Callable[[str, dict], Awaitable]
 
 def function_to_name(function: Callable) -> str:
     """Get a uniquely qualified name for a given function."""
-    return function.__qualname__
+    return function.__name__
 
 
 class Settings(BaseSettings):
@@ -98,6 +98,13 @@ class AMQPSystem:
 
         self._started: bool = False
         self._registry: Dict[CallbackType, Set[str]] = {}
+
+        self._connection = None
+        self._channel = None
+        self._exchange = None
+
+        self._periodic_task = None
+
 
     def has_started(self) -> bool:
         return self._started
@@ -122,8 +129,22 @@ class AMQPSystem:
 
         return decorator
 
-    async def run(self) -> None:
+    async def stop(self) -> None:
+        self._periodic_task.cancel()
+
+        self._exchange = None
+
+        await self._channel.close()
+        self._channel = None
+
+        await self._connection.close()
+        self._connection = None
+
+    async def start(self) -> None:
         self._started = True
+        assert self._connection is None
+        assert self._channel is None
+        assert self._exchange is None
 
         logger.info(
             "Establishing AMQP connection",
@@ -131,16 +152,16 @@ class AMQPSystem:
                 ":" + (self.settings.amqp_url.password or ""), ":xxxxx"
             ),
         )
-        connection = await connect_robust(self.settings.amqp_url)
+        self._connection = await connect_robust(self.settings.amqp_url)
 
         logger.info("Creating AMQP channel")
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=10)
+        self._channel = await self._connection.channel()
+        await self._channel.set_qos(prefetch_count=10)
 
         logger.info(
             "Attaching AMQP exchange to channel", exchange=self.settings.amqp_exchange
         )
-        topic_logs_exchange = await channel.declare_exchange(
+        self._exchange = await self._channel.declare_exchange(
             self.settings.amqp_exchange, ExchangeType.TOPIC
         )
 
@@ -155,16 +176,16 @@ class AMQPSystem:
 
             queue_name = f"{self.settings.queue_name}_{function_name}"
             log.info("Declaring unique message queue", queue_name=queue_name)
-            queue = await channel.declare_queue(queue_name, durable=True)
+            queue = await self._channel.declare_queue(queue_name, durable=True)
             queues[function_name] = queue
 
             log.info("Starting message listener")
-            await queue.consume(partial(callback, self.on_message))  # type: ignore
+            await queue.consume(partial(self.on_message, callback))  # type: ignore
 
             log.info("Binding routing keys")
             for routing_key in routing_keys:
                 log.info("Binding routing-key", routing_key=routing_key)
-                await queue.bind(topic_logs_exchange, routing_key=routing_key)
+                await queue.bind(self._exchange, routing_key=routing_key)
                 routes_bound.labels(function_name).inc()
 
         # Setup periodic metrics
@@ -173,14 +194,31 @@ class AMQPSystem:
             while True:
                 last_periodic.set_to_current_time()
                 last_loop_periodic.set(loop.time())
-                last_heartbeat.set(connection.heartbeat_last)  # type: ignore
+                # last_heartbeat.set(self._connection.heartbeat_last)  # type: ignore
                 for function_name, queue in queues.items():
                     backlog_count.labels(function_name).set(
                         queue.declaration_result.message_count
                     )
                 await asyncio.sleep(1)
 
-        asyncio.create_task(periodic_metrics())
+        self._periodic_task = asyncio.create_task(periodic_metrics())
+
+    async def run_forever(self):
+        loop = asyncio.get_event_loop()
+        # Setup everything
+        loop.run_until_complete(self.start())
+        # Run forever listening to messages
+        loop.run_forever()
+        loop.close()
+
+    async def publish_message(
+        self, routing_key, payload: dict
+    ) -> None:
+        message = Message(body=json.dumps(payload).encode("utf-8"))
+        await self._exchange.publish(
+            message=message,
+            routing_key=routing_key,
+        )
 
     async def on_message(
         self, callback: CallbackType, message: IncomingMessage
@@ -197,9 +235,9 @@ class AMQPSystem:
             event_counter.labels(routing_key, function_name).inc()
             async with message.process(requeue=True):
                 with exception_parse_counter.labels(routing_key).count_exceptions():
-                    payload = json.loads(message.body)
+                    decoded = message.body.decode("utf-8")
+                    payload = json.loads(decoded)
                 log.debug("Parsed message", payload=payload)
-                last_message_time.set(payload.time.timestamp())
 
                 with exception_callback_counter.labels(
                     routing_key, function_name
@@ -211,6 +249,6 @@ class AMQPSystem:
                     wrapped_callback = processing_time.labels(
                         routing_key, function_name
                     ).time()(wrapped_callback)
-                    await wrapped_callback(routing_key, message)
+                    await wrapped_callback(routing_key, payload)
         except Exception:
             log.exception("Exception during on_message()", routing_key=routing_key)

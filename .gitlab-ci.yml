@@ -29,3 +29,22 @@ Pre-commit:
     - poetry install
   script:
     - poetry run pre-commit run --all-files
+
+Integration-test:
+  stage: test
+  image: python:3.8-slim
+  needs: []
+  interruptible: true
+  services:
+    - name: rabbitmq:3
+      alias: rabbitmq
+  variables:
+    POETRY_VIRTUALENVS_CREATE: "false"
+    POETRY_VIRTUALENVS_IN_PROJECT: "false"
+
+    AMQP_URL: "amqp://guest:guest@rabbitmq:5672"
+  before_script:
+    - pip install --no-cache-dir poetry
+    - poetry install
+  script:
+    - poetry run pytest -m "integrationtest"
