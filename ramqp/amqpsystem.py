@@ -7,6 +7,7 @@ from functools import partial
 from typing import Awaitable
 from typing import Callable
 from typing import Dict
+from typing import Optional
 from typing import Set
 
 import structlog
@@ -27,11 +28,6 @@ logger = structlog.get_logger()
 
 
 event_counter = Counter("amqp_events", "AMQP Events", ["routing_key", "function_name"])
-exception_parse_counter = Counter(
-    "amqp_exceptions_parse",
-    "Exception counter",
-    ["routing_key"],
-)
 exception_callback_counter = Counter(
     "amqp_exceptions_callback",
     "Exception counter",
@@ -85,17 +81,14 @@ def function_to_name(function: Callable) -> str:
     return function.__name__
 
 
-class Settings(BaseSettings):
-    # queue_name should be program specific and consistent across runs
-    queue_name: str
+class ConnectionSettings(BaseSettings):
+    queue_name: Optional[str]
     amqp_url: AmqpDsn = parse_obj_as(AmqpDsn, "amqp://guest:guest@localhost:5672")
     amqp_exchange: str = "os2mo"
 
 
 class AMQPSystem:
     def __init__(self, *args, **kwargs):
-        self.settings = Settings(*args, **kwargs)
-
         self._started: bool = False
         self._registry: Dict[CallbackType, Set[str]] = {}
 
@@ -143,7 +136,9 @@ class AMQPSystem:
             await self._connection.close()
             self._connection = None
 
-    async def start(self) -> None:
+    async def start(self, *args, **kwargs) -> None:
+        settings = ConnectionSettings(*args, **kwargs)
+
         self._started = True
         assert self._connection is None
         assert self._channel is None
@@ -151,25 +146,27 @@ class AMQPSystem:
 
         logger.info(
             "Establishing AMQP connection",
-            url=self.settings.amqp_url.replace(
-                ":" + (self.settings.amqp_url.password or ""), ":xxxxx"
+            url=settings.amqp_url.replace(
+                ":" + (settings.amqp_url.password or ""), ":xxxxx"
             ),
         )
-        self._connection = await connect_robust(self.settings.amqp_url)
+        self._connection = await connect_robust(settings.amqp_url)
 
         logger.info("Creating AMQP channel")
         self._channel = await self._connection.channel()
         await self._channel.set_qos(prefetch_count=10)
 
         logger.info(
-            "Attaching AMQP exchange to channel", exchange=self.settings.amqp_exchange
+            "Attaching AMQP exchange to channel", exchange=settings.amqp_exchange
         )
         self._exchange = await self._channel.declare_exchange(
-            self.settings.amqp_exchange, ExchangeType.TOPIC
+            settings.amqp_exchange, ExchangeType.TOPIC
         )
 
         # We expect function_to_name to be unique for each callback
         assert all_unique(map(function_to_name, self._registry.keys()))
+        if self._registry:
+            assert settings.queue_name is not None
 
         # TODO: Create queues and binds in parallel?
         queues = {}
@@ -177,7 +174,7 @@ class AMQPSystem:
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
 
-            queue_name = f"{self.settings.queue_name}_{function_name}"
+            queue_name = f"{settings.queue_name}_{function_name}"
             log.info("Declaring unique message queue", queue_name=queue_name)
             queue = await self._channel.declare_queue(queue_name, durable=True)
             queues[function_name] = queue
@@ -206,10 +203,10 @@ class AMQPSystem:
 
         self._periodic_task = asyncio.create_task(periodic_metrics())
 
-    async def run_forever(self):
+    async def run_forever(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
         # Setup everything
-        loop.run_until_complete(self.start())
+        loop.run_until_complete(self.start(*args, **kwargs))
         # Run forever listening to messages
         loop.run_forever()
         self.stop()
@@ -229,6 +226,7 @@ class AMQPSystem:
         self, callback: CallbackType, message: IncomingMessage
     ) -> None:
         last_on_message.set_to_current_time()
+        print(message)
 
         assert message.routing_key is not None
         routing_key = message.routing_key
@@ -239,11 +237,6 @@ class AMQPSystem:
         try:
             event_counter.labels(routing_key, function_name).inc()
             async with message.process(requeue=True):
-                with exception_parse_counter.labels(routing_key).count_exceptions():
-                    decoded = message.body.decode("utf-8")
-                    payload = json.loads(decoded)
-                log.debug("Parsed message", payload=payload)
-
                 with exception_callback_counter.labels(
                     routing_key, function_name
                 ).count_exceptions():
@@ -254,6 +247,6 @@ class AMQPSystem:
                     wrapped_callback = processing_time.labels(
                         routing_key, function_name
                     ).time()(wrapped_callback)
-                    await wrapped_callback(routing_key, payload)
+                    await wrapped_callback(routing_key, message)
         except Exception:
             log.exception("Exception during on_message()", routing_key=routing_key)

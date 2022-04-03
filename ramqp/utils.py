@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 import asyncio
+import json
 from asyncio import TimerHandle
 from functools import wraps
 from typing import Dict
@@ -9,9 +10,18 @@ from typing import List
 from typing import Optional
 
 import structlog
+from aio_pika import IncomingMessage
+from prometheus_client import Counter
 
 
 logger = structlog.get_logger()
+
+
+exception_parse_counter = Counter(
+    "amqp_exceptions_parse",
+    "Exception counter",
+    ["routing_key"],
+)
 
 
 class Batch:
@@ -102,5 +112,19 @@ def strip_routing(function):
     @wraps(function)
     async def wrapper(routing_key: str, *args, **kwargs) -> None:
         await function(*args, **kwargs)
+
+    return wrapper
+
+
+def parse_message(function):
+    """Parse the incoming message as json and call through."""
+
+    @wraps(function)
+    async def wrapper(routing_key: str, message: IncomingMessage) -> None:
+        with exception_parse_counter.labels(routing_key).count_exceptions():
+            decoded = message.body.decode("utf-8")
+            payload = json.loads(decoded)
+        logger.debug("Parsed message", routing_key=routing_key, payload=payload)
+        await function(routing_key, payload)
 
     return wrapper

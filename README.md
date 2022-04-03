@@ -10,23 +10,29 @@ Rammearkitektur AMQP library is a wrapper around `aio_pika`.
 ## Usage
 
 Receiving:
-```
-amqp_system = AMQPSystem(queue_name="my-program")
+```python
+from ramqp import AMQPSystem
+from ramqp.utils import parse_message
+
+amqp_system = AMQPSystem()
 
 # Configure the callback function to receive messages for the two routing keys.
 # If an exception is thrown from the function, the message is not acknowledged.
 # Thus it will be retried immediately.
 @amqp_system.register("my.routing.key")
 @amqp_system.register("my.other.routing.key")
+@parse_message
 async def callback_function(routing_key: str, payload: dict) -> None:
     pass
 
-await amqp_system.run_forever()
+await amqp_system.run_forever(queue_name="my-program")
 ```
 
 Sending:
-```
-amqp_system = AMQPSystem(queue_name="my-program")
+```python
+from ramqp import AMQPSystem
+
+amqp_system = AMQPSystem()
 await amqp_system.start()
 await amqp_system.publish_message("my.routing.key", {"key": "value"})
 await amqp_system.stop()

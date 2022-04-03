@@ -32,4 +32,4 @@ def amqp_system_creator():
 
 @pytest.fixture
 def amqp_system(amqp_system_creator):
-    return amqp_system_creator(queue_name="test_queue")
+    return amqp_system_creator()
