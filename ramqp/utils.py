@@ -106,25 +106,31 @@ def bulk_messages(*args, **kwargs):
     return decorator
 
 
-def strip_routing(function):
-    """Remove routing parameters from callback function."""
-
-    @wraps(function)
-    async def wrapper(routing_key: str, *args, **kwargs) -> None:
-        await function(*args, **kwargs)
-
-    return wrapper
+def parse_payload(message: IncomingMessage) -> dict:
+    with exception_parse_counter.labels(routing_key).count_exceptions():
+        decoded = message.body.decode("utf-8")
+        payload = json.loads(decoded)
+    logger.debug("Parsed message", routing_key=routing_key, payload=payload)
+    return payload
 
 
-def parse_message(function):
-    """Parse the incoming message as json and call through."""
+def pass_arguments(*arguments: List[str]):
+    argument_map = {
+        "message": lambda message: message,
+        "routing_key": lambda message: message.routing_key,
+        "message_id": lambda message: message.message_id,
+        "payload": lambda message: parse_payload(message),
+    }
+    for argument in arguments:
+        assert argument in argument_map
 
-    @wraps(function)
-    async def wrapper(routing_key: str, message: IncomingMessage) -> None:
-        with exception_parse_counter.labels(routing_key).count_exceptions():
-            decoded = message.body.decode("utf-8")
-            payload = json.loads(decoded)
-        logger.debug("Parsed message", routing_key=routing_key, payload=payload)
-        await function(routing_key, payload)
+    def decorator(function):
+        async def message_receiver(routing_key: str, message: IncomingMessage) -> None:
+            kwargs = {}
+            for argument in arguments:
+                kwargs[argument] = argument_map[argument](message)
+            await function(**kwargs)
 
-    return wrapper
+        return message_receiver
+
+    return decorator

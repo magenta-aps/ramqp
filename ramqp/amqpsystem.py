@@ -226,14 +226,13 @@ class AMQPSystem:
         self, callback: CallbackType, message: IncomingMessage
     ) -> None:
         last_on_message.set_to_current_time()
-        print(message)
 
         assert message.routing_key is not None
         routing_key = message.routing_key
         function_name = function_to_name(callback)
         log = logger.bind(function=function_name, routing_key=routing_key)
 
-        log.debug("Recieved message")
+        log.debug("Received message")
         try:
             event_counter.labels(routing_key, function_name).inc()
             async with message.process(requeue=True):

@@ -12,7 +12,7 @@ Rammearkitektur AMQP library is a wrapper around `aio_pika`.
 Receiving:
 ```python
 from ramqp import AMQPSystem
-from ramqp.utils import parse_message
+from ramqp.utils import pass_arguments
 
 amqp_system = AMQPSystem()
 
@@ -21,8 +21,8 @@ amqp_system = AMQPSystem()
 # Thus it will be retried immediately.
 @amqp_system.register("my.routing.key")
 @amqp_system.register("my.other.routing.key")
-@parse_message
-async def callback_function(routing_key: str, payload: dict) -> None:
+@pass_arguments("routing_key")
+async def callback_function(routing_key: str) -> None:
     pass
 
 await amqp_system.run_forever(queue_name="my-program")
