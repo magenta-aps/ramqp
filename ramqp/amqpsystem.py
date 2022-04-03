@@ -10,10 +10,10 @@ from typing import Dict
 from typing import Set
 
 import structlog
-from aio_pika import Message
 from aio_pika import connect_robust
 from aio_pika import ExchangeType
 from aio_pika import IncomingMessage
+from aio_pika import Message
 from more_itertools import all_unique
 from prometheus_client import Counter
 from prometheus_client import Gauge
@@ -105,7 +105,6 @@ class AMQPSystem:
 
         self._periodic_task = None
 
-
     def has_started(self) -> bool:
         return self._started
 
@@ -130,15 +129,19 @@ class AMQPSystem:
         return decorator
 
     async def stop(self) -> None:
-        self._periodic_task.cancel()
+        if self._periodic_task:
+            self._periodic_task.cancel()
+            self._periodic_task = None
 
         self._exchange = None
 
-        await self._channel.close()
-        self._channel = None
+        if self._channel:
+            await self._channel.close()
+            self._channel = None
 
-        await self._connection.close()
-        self._connection = None
+        if self._connection:
+            await self._connection.close()
+            self._connection = None
 
     async def start(self) -> None:
         self._started = True
@@ -211,9 +214,10 @@ class AMQPSystem:
         loop.run_forever()
         loop.close()
 
-    async def publish_message(
-        self, routing_key, payload: dict
-    ) -> None:
+    async def publish_message(self, routing_key, payload: dict) -> None:
+        if self._exchange is None:
+            raise ValueError("Must call start() before publish message!")
+
         message = Message(body=json.dumps(payload).encode("utf-8"))
         await self._exchange.publish(
             message=message,

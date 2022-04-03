@@ -4,15 +4,17 @@
 import asyncio
 import random
 import string
-import json
+from typing import Any
+from typing import Dict
 
 import pytest
 
 
 def random_string(length=30):
-    return ''.join(random.choice(
-        string.ascii_uppercase + string.ascii_lowercase + string.digits
-    ) for _ in range(length))
+    return "".join(
+        random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits)
+        for _ in range(length)
+    )
 
 
 @pytest.mark.integrationtest
@@ -23,7 +25,7 @@ async def test_context_process(amqp_system_creator):
     payload = {"value": test_id}
     event = asyncio.Event()
 
-    params = {}
+    params: Dict[str, Any] = {}
 
     async def callback(routing_key: str, payload: dict) -> None:
         params["routing_key"] = routing_key
