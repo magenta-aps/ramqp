@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "ramqp"
+version = "0.1.0"
+description = "Rammearkitektur AMQP library (aio_pika wrapper)"
+authors = ["Magenta ApS <info@magenta.dk>"]
+license = "MPL-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+aio-pika = "^7.1.2"
+structlog = "^21.5.0"
+prometheus-client = "^0.13.1"
+pydantic = "^1.9.0"
+more-itertools = "^8.12.0"
+pytest-asyncio = "^0.18.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.1"
+black = "^22.3.0"
+reorder-python-imports = "^3.0.1"
+mypy = "^0.942"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode="auto"
+
+[tool.mypy]
+plugins = "pydantic.mypy"
