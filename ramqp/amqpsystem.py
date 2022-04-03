@@ -212,6 +212,7 @@ class AMQPSystem:
         loop.run_until_complete(self.start())
         # Run forever listening to messages
         loop.run_forever()
+        self.stop()
         loop.close()
 
     async def publish_message(self, routing_key, payload: dict) -> None:
