@@ -17,28 +17,52 @@ def random_string(length=30):
     )
 
 
-@pytest.mark.integrationtest
-async def test_context_process(amqp_system_creator):
-    test_id = random_string()
-    queue_name = f"test_{test_id}"
-    routing_key = "test.routing.key"
-    payload = {"value": test_id}
-    event = asyncio.Event()
+@pytest.fixture
+def amqp_test(amqp_system_creator):
+    async def make_amqp_test(callback):
+        test_id = random_string()
+        queue_name = f"test_{test_id}"
+        routing_key = "test.routing.key"
+        payload = {"value": test_id}
+        event = asyncio.Event()
 
+        async def callback_wrapper(routing_key: str, payload: dict) -> None:
+            await callback(routing_key, payload)
+            event.set()
+
+        amqp_system = amqp_system_creator(queue_name=queue_name, amqp_exchange=test_id)
+        amqp_system.register(routing_key)(callback_wrapper)
+        await amqp_system.start()
+        await amqp_system.publish_message(routing_key, payload)
+        await event.wait()
+        await amqp_system.stop()
+
+    return make_amqp_test
+
+
+@pytest.mark.integrationtest
+async def test_happy_path(amqp_test):
     params: Dict[str, Any] = {}
 
     async def callback(routing_key: str, payload: dict) -> None:
         params["routing_key"] = routing_key
         params["payload"] = payload
-        event.set()
 
-    amqp_system = amqp_system_creator(queue_name=queue_name, amqp_exchange=test_id)
-    amqp_system.register(routing_key)(callback)
-    await amqp_system.start()
-    await amqp_system.publish_message(routing_key, payload)
-    await event.wait()
-    await amqp_system.stop()
+    await amqp_test(callback)
+    assert "routing_key" in params.keys()
+    assert "payload" in params.keys()
+
+
+@pytest.mark.integrationtest
+async def test_callback_retrying(amqp_test):
+    params: Dict[str, Any] = {"call_count": 0}
+
+    async def callback(routing_key: str, payload: dict) -> None:
+        params["call_count"] += 1
+        if params["call_count"] < 5:
+            raise ValueError()
+
+    await amqp_test(callback)
     assert params == {
-        "routing_key": routing_key,
-        "payload": payload,
+        "call_count": 5,
     }
