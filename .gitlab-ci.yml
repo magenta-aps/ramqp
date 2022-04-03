@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2022 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+
+variables:
+  PYTEST_COV_MODULE: ramqp
+
+stages:
+  - lint
+  - test
+  - coverage
+  - release
+
+include:
+  - project: labs/salt-automation
+    ref: feature/49503_ramqp_templates
+    file: gitlab-ci-templates/python/pytest.v1.yml
+  - project: labs/salt-automation
+    ref: feature/49503_ramqp_templates
+    file: gitlab-ci-templates/python/pypi.v1.yml
+
+
+Pre-commit:
+  stage: lint
+  interruptible: true
+  needs: []
+  image: python:3.8
+  before_script:
+    - pip install --no-cache-dir poetry
+    - poetry install
+  script:
+    - poetry run pre-commit run --all-files

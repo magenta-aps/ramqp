@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 import pytest
-from more_itertools import one
 
 from .common import callback_func
 from ramqp import InvalidRegisterCallException
@@ -15,7 +14,7 @@ def test_register(amqp_system, log_output):
     assert callback_func == decorated_func
 
     # Check that the amqp system did not start, and that our function has been added
-    assert amqp_system.has_started() == False
+    assert amqp_system.has_started() is False
     assert len(amqp_system._registry) == 1
     routing_keys = amqp_system._registry[callback_func]
     assert routing_keys == {"test.routing.key"}
@@ -33,9 +32,9 @@ def test_register(amqp_system, log_output):
 
 def test_register_after_start(amqp_system, log_output):
     # Fake that the system has started
-    assert amqp_system.has_started() == False
+    assert amqp_system.has_started() is False
     amqp_system._started = True
-    assert amqp_system.has_started() == True
+    assert amqp_system.has_started() is True
 
     # Cannot call register after system has started
     with pytest.raises(InvalidRegisterCallException):

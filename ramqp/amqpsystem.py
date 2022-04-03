@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 import asyncio
 import json
-from functools import wraps
+from functools import partial
 from typing import Awaitable
 from typing import Callable
 from typing import Dict
@@ -128,7 +128,7 @@ class AMQPSystem:
         logger.info(
             "Establishing AMQP connection",
             url=self.settings.amqp_url.replace(
-                ":" + self.settings.amqp_url.password, ":xxxxx"
+                ":" + (self.settings.amqp_url.password or ""), ":xxxxx"
             ),
         )
         connection = await connect_robust(self.settings.amqp_url)

@@ -12,7 +12,6 @@ from typing import cast
 from typing import List
 from uuid import UUID
 
-import structlog
 from pydantic import BaseModel
 from pydantic import validator
 

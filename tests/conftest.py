@@ -22,6 +22,6 @@ def fixture_configure_structlog(log_output):
 def amqp_system():
     amqp_system = AMQPSystem(queue_name="test_queue")
     # Assert initial configuration
-    assert amqp_system.has_started() == False
+    assert amqp_system.has_started() is False
     assert amqp_system._registry == {}
     return amqp_system
