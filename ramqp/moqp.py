@@ -9,11 +9,16 @@ from typing import Any
 from typing import Awaitable
 from typing import Callable
 from typing import cast
+from typing import Dict
 from typing import List
 from uuid import UUID
 
+from aio_pika import IncomingMessage
 from pydantic import BaseModel
+from pydantic import parse_raw_as
 from pydantic import validator
+
+from .amqpsystem import AMQPSystem
 
 
 class AutoNameEnum(Enum):
@@ -73,4 +78,53 @@ class PayloadType(BaseModel):
         return datetime.fromisoformat(v)
 
 
-CallbackType = Callable[[ServiceType, ObjectType, RequestType, PayloadType], Awaitable]
+MOCallbackType = Callable[[str, PayloadType], Awaitable]
+
+
+class MOAMQPSystem:
+    def __init__(self) -> None:
+        self._amqp_system = AMQPSystem()
+
+    def has_started(self) -> bool:
+        return self._amqp_system.has_started()
+
+    def register(
+        self,
+        service_type: ServiceType,
+        object_type: ObjectType,
+        request_type: RequestType,
+    ) -> Callable:
+        routing_key = ".".join([str(service_type), str(object_type), str(request_type)])
+        amqp_decorator = self._amqp_system.register(routing_key)
+
+        def decorator(function: MOCallbackType) -> MOCallbackType:
+            async def wrapper(message: IncomingMessage) -> None:
+                assert message.routing_key is not None
+                payload = parse_raw_as(PayloadType, message.body)
+                await function(message.routing_key, payload)
+
+            wrapper.__name__ = function.__name__
+            amqp_decorator(wrapper)
+            return function
+
+        return decorator
+
+    async def stop(self) -> None:
+        await self._amqp_system.stop()
+
+    async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        await self._amqp_system.start(*args, **kwargs)
+
+    def run_forever(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        self._amqp_system.run_forever(*args, **kwargs)
+
+    async def publish_message(
+        self,
+        service_type: ServiceType,
+        object_type: ObjectType,
+        request_type: RequestType,
+        payload: PayloadType,
+    ) -> None:
+        routing_key = ".".join([str(service_type), str(object_type), str(request_type)])
+        json_payload = payload.dict()
+        await self._amqp_system.publish_message(routing_key, json_payload)

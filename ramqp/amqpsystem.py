@@ -91,7 +91,7 @@ class ConnectionSettings(BaseSettings):
 
 
 class AMQPSystem:
-    def __init__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+    def __init__(self) -> None:
         self._started: bool = False
         self._registry: Dict[CallbackType, Set[str]] = {}
 
