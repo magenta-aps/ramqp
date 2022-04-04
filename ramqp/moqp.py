@@ -84,9 +84,7 @@ MOCallbackType = Callable[[str, PayloadType], Awaitable]
 
 
 def mo_routing_key(
-    service_type: ServiceType,
-    object_type: ObjectType,
-    request_type: RequestType
+    service_type: ServiceType, object_type: ObjectType, request_type: RequestType
 ) -> str:
     return ".".join([service_type, object_type, request_type])
 
@@ -137,4 +135,4 @@ class MOAMQPSystem:
     ) -> None:
         routing_key = mo_routing_key(service_type, object_type, request_type)
         payload_obj = jsonable_encoder(payload)
-        await self._amqp_system.publish_message(routing_key, jsonable_encoder(payload))
+        await self._amqp_system.publish_message(routing_key, payload_obj)

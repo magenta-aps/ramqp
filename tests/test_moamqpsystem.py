@@ -5,22 +5,21 @@ import asyncio
 import random
 import string
 from datetime import datetime
-from uuid import uuid4
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from uuid import uuid4
 
 import pytest
-from aio_pika import IncomingMessage
 from pydantic import parse_obj_as
 
-from ramqp.moqp import ServiceType
-from ramqp.moqp import ObjectType
-from ramqp.moqp import RequestType
-from ramqp.moqp import PayloadType
+from ramqp import AMQPSystem
 from ramqp.moqp import MOAMQPSystem
-from ramqp.utils import pass_arguments
+from ramqp.moqp import ObjectType
+from ramqp.moqp import PayloadType
+from ramqp.moqp import RequestType
+from ramqp.moqp import ServiceType
 
 
 def random_string(length: int = 30) -> str:
@@ -35,14 +34,14 @@ def moamqp_test(amqp_system_creator: Callable) -> Callable:
     async def make_amqp_test(callback: Callable) -> None:
         test_id = random_string()
         queue_name = f"test_{test_id}"
-        routing_key = [ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE]
+        routing_key = (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
         payload = parse_obj_as(
             PayloadType,
             {
                 "uuid": uuid4(),
                 "object_uuid": uuid4(),
                 "time": datetime.now().isoformat(),
-            }
+            },
         )
         event = asyncio.Event()
 
@@ -53,7 +52,10 @@ def moamqp_test(amqp_system_creator: Callable) -> Callable:
         inner_amqp_system = amqp_system_creator()
         amqp_system = MOAMQPSystem(inner_amqp_system)
         amqp_system.register(*routing_key)(callback_wrapper)
-        await amqp_system.start(queue_name=queue_name, amqp_exchange=test_id)
+        await amqp_system.start(
+            queue_name=queue_name,  # type: ignore
+            amqp_exchange=test_id,  # type: ignore
+        )
         await amqp_system.publish_message(*routing_key, payload)
         await event.wait()
         await amqp_system.stop()
@@ -75,3 +77,39 @@ async def test_happy_path(moamqp_test: Callable) -> None:
     await moamqp_test(callback)
     assert ["routing_key", "payload"] == list(params.keys())
     assert params["routing_key"] == "EMPLOYEE.ADDRESS.CREATE"
+
+
+def test_run_forever(amqp_system: AMQPSystem) -> None:
+    # Instead of starting, shutdown the event-loop
+    async def start(*args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        loop = asyncio.get_running_loop()
+        loop.stop()
+
+    # mypy says: Cannot assign to a method, we ignore it
+    moamqp_system = MOAMQPSystem(amqp_system)
+    moamqp_system._amqp_system.start = start  # type: ignore
+    moamqp_system.run_forever()
+
+
+async def test_publish_before_start(amqp_system: AMQPSystem) -> None:
+    routing_key = (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
+    payload = parse_obj_as(
+        PayloadType,
+        {
+            "uuid": uuid4(),
+            "object_uuid": uuid4(),
+            "time": datetime.now().isoformat(),
+        },
+    )
+
+    moamqp_system = MOAMQPSystem(amqp_system)
+    with pytest.raises(ValueError):
+        await moamqp_system.publish_message(*routing_key, payload)
+
+
+def test_has_started(amqp_system: AMQPSystem) -> None:
+    moamqp_system = MOAMQPSystem(amqp_system)
+    # Fake that the system has started
+    assert moamqp_system.has_started() is False
+    amqp_system._started = True
+    assert moamqp_system.has_started() is True
