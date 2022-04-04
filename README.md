@@ -25,7 +25,7 @@ amqp_system = AMQPSystem()
 async def callback_function(routing_key: str) -> None:
     pass
 
-await amqp_system.run_forever(queue_name="my-program")
+amqp_system.run_forever(queue_name="my-program")
 ```
 
 Sending:

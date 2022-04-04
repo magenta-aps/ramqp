@@ -201,13 +201,14 @@ class AMQPSystem:
 
         self._periodic_task = asyncio.create_task(periodic_metrics())
 
-    async def run_forever(self, *args, **kwargs):
+    def run_forever(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
         # Setup everything
         loop.run_until_complete(self.start(*args, **kwargs))
         # Run forever listening to messages
         loop.run_forever()
-        self.stop()
+        # Clean up everything
+        loop.run_until_complete(self.stop())
         loop.close()
 
     async def publish_message(self, routing_key: str, payload: dict) -> None:

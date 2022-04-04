@@ -43,6 +43,21 @@ def amqp_test(amqp_system_creator):
     return make_amqp_test
 
 
+def test_run_forever(amqp_system):
+    # Instead of starting, shutdown the event-loop
+    async def start(*args, **kwargs):
+        loop = asyncio.get_running_loop()
+        loop.stop()
+
+    amqp_system.start = start
+    amqp_system.run_forever()
+
+
+async def test_publish_before_start(amqp_system):
+    with pytest.raises(ValueError):
+        await amqp_system.publish_message("test.routing.key", {"key": "value"})
+
+
 @pytest.mark.integrationtest
 async def test_happy_path(amqp_test):
     """Test that messages can flow through our AMQP system."""
