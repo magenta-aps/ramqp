@@ -5,15 +5,16 @@ from typing import cast
 
 from .common import callback_func
 from .common import callback_func2
+from ramqp import AMQPSystem
 from ramqp.amqpsystem import callbacks_registered
 
 
-def get_callback_metric_value(routing_key) -> float:
+def get_callback_metric_value(routing_key: str) -> float:
     metric = callbacks_registered._metrics[(routing_key,)]._value  # type: ignore
     return cast(float, metric.get())
 
 
-async def test_register_metrics(amqp_system):
+async def test_register_metrics(amqp_system: AMQPSystem) -> None:
     """Test that reigster() metrics behave as expected."""
     # Check that our processing_metric is empty
     assert set(callbacks_registered._metrics.keys()) == set()

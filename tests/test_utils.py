@@ -15,7 +15,7 @@ from ramqp.utils import pass_arguments
 
 
 @pytest.fixture
-def aio_pika_message():
+def aio_pika_message() -> Message:
     payload = {"key": "value"}
     message = Message(body=json.dumps(payload).encode("utf-8"))
     message.channel = None
@@ -51,11 +51,12 @@ def aio_pika_message():
 
 
 @pytest.fixture
-def aio_pika_incoming_message(aio_pika_message):
-    return IncomingMessage(aio_pika_message)
+def aio_pika_incoming_message(aio_pika_message: Message) -> IncomingMessage:
+    # TODO: We should convert Message to DeliveredMessage first
+    return IncomingMessage(aio_pika_message)  # type: ignore
 
 
-async def test_message_mock(aio_pika_incoming_message):
+async def test_message_mock(aio_pika_incoming_message: IncomingMessage) -> None:
     params = {}
 
     async def callback(message: IncomingMessage) -> None:
@@ -65,7 +66,9 @@ async def test_message_mock(aio_pika_incoming_message):
     assert params["callback_called"] is True
 
 
-async def test_pass_arguments_message(aio_pika_incoming_message):
+async def test_pass_arguments_message(
+    aio_pika_incoming_message: IncomingMessage,
+) -> None:
     params = {}
 
     @pass_arguments
@@ -76,7 +79,9 @@ async def test_pass_arguments_message(aio_pika_incoming_message):
     assert params["message"].priority == 0
 
 
-async def test_pass_arguments_message_id(aio_pika_incoming_message):
+async def test_pass_arguments_message_id(
+    aio_pika_incoming_message: IncomingMessage,
+) -> None:
     params = {}
 
     @pass_arguments
@@ -87,7 +92,9 @@ async def test_pass_arguments_message_id(aio_pika_incoming_message):
     assert params["message_id"] == "6800cb934bf94cc68009fe04ac91c972"
 
 
-async def test_pass_arguments_payload(aio_pika_incoming_message):
+async def test_pass_arguments_payload(
+    aio_pika_incoming_message: IncomingMessage,
+) -> None:
     params = {}
 
     @pass_arguments
@@ -98,7 +105,9 @@ async def test_pass_arguments_payload(aio_pika_incoming_message):
     assert params["payload"] == {"key": "value"}
 
 
-async def test_pass_arguments_routing_key(aio_pika_incoming_message):
+async def test_pass_arguments_routing_key(
+    aio_pika_incoming_message: IncomingMessage,
+) -> None:
     params = {}
 
     @pass_arguments
@@ -109,7 +118,7 @@ async def test_pass_arguments_routing_key(aio_pika_incoming_message):
     assert params["routing_key"] == "test.routing.key"
 
 
-async def test_pass_arguments_body(aio_pika_incoming_message):
+async def test_pass_arguments_body(aio_pika_incoming_message: IncomingMessage) -> None:
     params = {}
 
     @pass_arguments
@@ -120,7 +129,9 @@ async def test_pass_arguments_body(aio_pika_incoming_message):
     assert params["body"] == '{"key": "value"}'
 
 
-async def test_pass_arguments_multiple(aio_pika_incoming_message):
+async def test_pass_arguments_multiple(
+    aio_pika_incoming_message: IncomingMessage,
+) -> None:
     params: Dict[str, Any] = {}
 
     @pass_arguments
@@ -135,7 +146,9 @@ async def test_pass_arguments_multiple(aio_pika_incoming_message):
     assert params["payload"] == {"key": "value"}
 
 
-async def test_pass_arguments_multiple_reorder(aio_pika_incoming_message):
+async def test_pass_arguments_multiple_reorder(
+    aio_pika_incoming_message: IncomingMessage,
+) -> None:
     params: Dict[str, Any] = {}
 
     @pass_arguments

@@ -69,7 +69,7 @@ class PayloadType(BaseModel):
         }
 
     @validator("time", pre=True)
-    def time_validate(cls, v):
+    def time_validate(cls, v: Any) -> Any:
         return datetime.fromisoformat(v)
 
 

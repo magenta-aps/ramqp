@@ -4,8 +4,10 @@
 import asyncio
 import json
 from functools import partial
+from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Set
 
@@ -14,6 +16,9 @@ from aio_pika import connect_robust
 from aio_pika import ExchangeType
 from aio_pika import IncomingMessage
 from aio_pika import Message
+from aio_pika.abc import AbstractChannel
+from aio_pika.abc import AbstractExchange
+from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 from prometheus_client import Counter
 from prometheus_client import Gauge
@@ -86,15 +91,15 @@ class ConnectionSettings(BaseSettings):
 
 
 class AMQPSystem:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
         self._started: bool = False
         self._registry: Dict[CallbackType, Set[str]] = {}
 
-        self._connection = None
-        self._channel = None
-        self._exchange = None
+        self._connection: Optional[AbstractRobustConnection] = None
+        self._channel: Optional[AbstractChannel] = None
+        self._exchange: Optional[AbstractExchange] = None
 
-        self._periodic_task = None
+        self._periodic_task: Optional[asyncio.Task] = None
 
     def has_started(self) -> bool:
         return self._started
@@ -134,7 +139,7 @@ class AMQPSystem:
             await self._connection.close()
             self._connection = None
 
-    async def start(self, *args, **kwargs) -> None:
+    async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
         settings = ConnectionSettings(*args, **kwargs)
 
         self._started = True
@@ -201,7 +206,7 @@ class AMQPSystem:
 
         self._periodic_task = asyncio.create_task(periodic_metrics())
 
-    def run_forever(self, *args, **kwargs):
+    def run_forever(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
         loop = asyncio.get_event_loop()
         # Setup everything
         loop.run_until_complete(self.start(*args, **kwargs))

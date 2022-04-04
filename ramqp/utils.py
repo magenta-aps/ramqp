@@ -6,6 +6,7 @@ import json
 from asyncio import TimerHandle
 from functools import wraps
 from inspect import signature
+from typing import Any
 from typing import Awaitable
 from typing import Callable
 from typing import cast
@@ -34,11 +35,11 @@ exception_parse_counter = Counter(
 class Batch:
     def __init__(
         self,
-        callback,
+        callback: Callable[..., Awaitable],
         batch_refresh_time: int = 5,
         batch_max_time: int = 60,
         batch_max_size: int = 10,
-    ):
+    ) -> None:
         self.callback = callback
 
         self.batch_refresh_time = batch_refresh_time
@@ -79,34 +80,36 @@ class Batch:
         self.payloads = []
 
     # Dispatch functions
-    def dispatch_refresh_time(self):
+    def dispatch_refresh_time(self) -> Awaitable:
         logger.debug("Dispatched by refresh time timer")
         return self.dispatch()
 
-    def dispatch_max_time(self):
+    def dispatch_max_time(self) -> Awaitable:
         logger.debug("Dispatched by max time timer")
         return self.dispatch()
 
-    def dispatch_max_length(self):
+    def dispatch_max_length(self) -> Awaitable:
         logger.debug("Dispatched by max length")
         return self.dispatch()
 
-    def dispatch(self):
+    def dispatch(self) -> Awaitable:
         payloads = self.payloads
         self.clear()
         return self.callback(payloads)
 
 
 # XXX: Do not use, this needs to handle ACKs better
-def __bulk_messages(*args, **kwargs):
+def __bulk_messages(*args: List[Any], **kwargs: Dict[str, Any]) -> Callable:
     """Bulk messages before calling wrapped function."""
 
-    def decorator(function):
+    def decorator(function: Callable) -> Callable:
         batches: Dict[str, Batch] = {}
 
         @wraps(function)
         async def wrapper(routing_key: str, payload: dict) -> None:
-            batch = batches.setdefault(routing_key, Batch(function, *args, **kwargs))
+            batch = batches.setdefault(
+                routing_key, Batch(function, *args, **kwargs)  # type: ignore
+            )
             batch.append(payload)
 
         return wrapper

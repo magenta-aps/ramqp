@@ -2,12 +2,14 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 import pytest
+from structlog.testing import LogCapture
 
 from .common import callback_func
+from ramqp import AMQPSystem
 from ramqp import InvalidRegisterCallException
 
 
-def test_register(amqp_system, log_output):
+def test_register(amqp_system: AMQPSystem, log_output: LogCapture) -> None:
     # Call decorator on our function, and check that the function is not modified
     # The decorator should purely register the callback, not modify our function
     decorated_func = amqp_system.register("test.routing.key")(callback_func)
@@ -30,7 +32,7 @@ def test_register(amqp_system, log_output):
     ]
 
 
-def test_register_after_start(amqp_system, log_output):
+def test_register_after_start(amqp_system: AMQPSystem, log_output: LogCapture) -> None:
     # Fake that the system has started
     assert amqp_system.has_started() is False
     amqp_system._started = True
@@ -57,7 +59,7 @@ def test_register_after_start(amqp_system, log_output):
     ]
 
 
-def test_register_invalid_routing_key(amqp_system):
+def test_register_invalid_routing_key(amqp_system: AMQPSystem) -> None:
     # Cannot call register with empty routing key
     with pytest.raises(AssertionError):
         amqp_system.register("")(callback_func)
