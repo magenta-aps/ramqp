@@ -11,9 +11,11 @@ from typing import Callable
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Optional
 from uuid import UUID
 
 from aio_pika import IncomingMessage
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pydantic import parse_raw_as
 from pydantic import validator
@@ -81,9 +83,17 @@ class PayloadType(BaseModel):
 MOCallbackType = Callable[[str, PayloadType], Awaitable]
 
 
+def mo_routing_key(
+    service_type: ServiceType,
+    object_type: ObjectType,
+    request_type: RequestType
+) -> str:
+    return ".".join([service_type, object_type, request_type])
+
+
 class MOAMQPSystem:
-    def __init__(self) -> None:
-        self._amqp_system = AMQPSystem()
+    def __init__(self, amqp_system: Optional[AMQPSystem] = None) -> None:
+        self._amqp_system = amqp_system or AMQPSystem()
 
     def has_started(self) -> bool:
         return self._amqp_system.has_started()
@@ -94,7 +104,7 @@ class MOAMQPSystem:
         object_type: ObjectType,
         request_type: RequestType,
     ) -> Callable:
-        routing_key = ".".join([str(service_type), str(object_type), str(request_type)])
+        routing_key = mo_routing_key(service_type, object_type, request_type)
         amqp_decorator = self._amqp_system.register(routing_key)
 
         def decorator(function: MOCallbackType) -> MOCallbackType:
@@ -125,6 +135,6 @@ class MOAMQPSystem:
         request_type: RequestType,
         payload: PayloadType,
     ) -> None:
-        routing_key = ".".join([str(service_type), str(object_type), str(request_type)])
-        json_payload = payload.dict()
-        await self._amqp_system.publish_message(routing_key, json_payload)
+        routing_key = mo_routing_key(service_type, object_type, request_type)
+        payload_obj = jsonable_encoder(payload)
+        await self._amqp_system.publish_message(routing_key, jsonable_encoder(payload))
