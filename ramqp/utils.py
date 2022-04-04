@@ -149,11 +149,11 @@ def _parse_payload(message: IncomingMessage) -> dict:
 
 # Map af parameters supported by pass_arguments
 parameter_map = {
+    "body": lambda message: _decode_body(message),
     "message": lambda message: message,
-    "routing_key": lambda message: message.routing_key,
     "message_id": lambda message: message.message_id,
     "payload": lambda message: _parse_payload(message),
-    "body": lambda message: _decode_body(message),
+    "routing_key": lambda message: message.routing_key,
 }
 
 

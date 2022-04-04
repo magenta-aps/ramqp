@@ -1,9 +1,6 @@
 # SPDX-FileCopyrightText: 2022 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
 
-variables:
-  PYTEST_COV_MODULE: ramqp
-
 stages:
   - lint
   - test
@@ -16,7 +13,7 @@ include:
     file: /gitlab-ci-templates/common/autopub.v1.yml
   - project: labs/salt-automation
     ref: feature/49503_ramqp_templates
-    file: gitlab-ci-templates/python/pytest.v1.yml
+    file: gitlab-ci-templates/python/pytest-meta.v1.yml
   - project: labs/salt-automation
     ref: feature/49503_ramqp_templates
     file: gitlab-ci-templates/python/pypi.v1.yml
@@ -33,21 +30,31 @@ Pre-commit:
   script:
     - poetry run pre-commit run --all-files
 
+Test:
+  extends: .pytest
+  variables:
+    PYTEST_COV_MODULE: ramqp
+    PYTEST_EXTRA_FLAGS: "-m unittest"
+
 Integration-test:
-  stage: test
-  image: python:3.8-slim
-  needs: []
-  interruptible: true
+  extends: .pytest
   services:
     - name: rabbitmq:3
       alias: rabbitmq
   variables:
-    POETRY_VIRTUALENVS_CREATE: "false"
-    POETRY_VIRTUALENVS_IN_PROJECT: "false"
+    PYTEST_COV_MODULE: ramqp
+    PYTEST_EXTRA_FLAGS: "-m integrationtest"
 
     AMQP_URL: "amqp://guest:guest@rabbitmq:5672"
-  before_script:
-    - pip install --no-cache-dir poetry
-    - poetry install
-  script:
-    - poetry run pytest -m "integrationtest"
+
+Export Integration-test coverage:
+  extends: .export_coverage
+  needs:
+    - Test
+    - Integration-test
+
+Check Integration-test coverage:
+  extends: .check_coverage
+  needs:
+    - Test
+    - Integration-test

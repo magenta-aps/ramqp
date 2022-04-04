@@ -20,7 +20,7 @@ black = "^22.3.0"
 reorder-python-imports = "^3.0.1"
 mypy = "^0.942"
 pre-commit = "^2.18.1"
-aiomisc = "^15.7.3"
+ra-utils = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -33,13 +33,13 @@ git-email = "info@magenta.dk"
 [tool.pytest.ini_options]
 asyncio_mode="auto"
 markers = [
-    "integrationtest: marks tests as integration tests (Need RabbitMQ)"
+    "integrationtest: marks tests as integration tests (Need RabbitMQ)",
+    "unittest: marks tests as unit tests (i.e. all non-integration tests"
 ]
 
 [tool.mypy]
 python_version = 3.8
 warn_return_any = "True"
 warn_unused_configs = "True"
-ignore_missing_imports = "True"
 check_untyped_defs = "True"
 plugins = "pydantic.mypy"
