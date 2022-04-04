@@ -12,6 +12,9 @@ stages:
 
 include:
   - project: labs/salt-automation
+    ref: master
+    file: /gitlab-ci-templates/common/autopub.v1.yml
+  - project: labs/salt-automation
     ref: feature/49503_ramqp_templates
     file: gitlab-ci-templates/python/pytest.v1.yml
   - project: labs/salt-automation

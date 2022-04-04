@@ -26,6 +26,10 @@ aiomisc = "^15.7.3"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.autopub]
+git-username = "MagentaBot"
+git-email = "info@magenta.dk"
+
 [tool.pytest.ini_options]
 asyncio_mode="auto"
 markers = [
