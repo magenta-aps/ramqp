@@ -45,26 +45,24 @@ def amqp_test(amqp_system_creator):
 
 @pytest.mark.integrationtest
 async def test_happy_path(amqp_test):
+    """Test that messages can flow through our AMQP system."""
     params: Dict[str, Any] = {}
 
-    async def callback(routing_key: str, message: IncomingMessage) -> None:
-        assert type(routing_key) == str
+    async def callback(message: IncomingMessage) -> None:
         assert type(message) == IncomingMessage
-        params["routing_key"] = routing_key
         params["message"] = message
 
     await amqp_test(callback)
-    assert "routing_key" in params.keys()
-    assert "message" in params.keys()
+    assert ["message"] == list(params.keys())
 
 
 @pytest.mark.integrationtest
 async def test_callback_retrying(amqp_test):
+    """Test that messages are resend when an exception occur."""
     params: Dict[str, Any] = {"call_count": 0, "message_ids": set()}
 
-    @pass_arguments("routing_key", "message_id")
-    async def callback(routing_key: str, message_id: str) -> None:
-        assert type(routing_key) == str
+    @pass_arguments
+    async def callback(message_id: str) -> None:
         assert type(message_id) == str
         params["message_ids"].add(message_id)
         params["call_count"] += 1

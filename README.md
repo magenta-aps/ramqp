@@ -21,7 +21,7 @@ amqp_system = AMQPSystem()
 # Thus it will be retried immediately.
 @amqp_system.register("my.routing.key")
 @amqp_system.register("my.other.routing.key")
-@pass_arguments("routing_key")
+@pass_arguments
 async def callback_function(routing_key: str) -> None:
     pass
 

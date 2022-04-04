@@ -4,7 +4,6 @@
 import asyncio
 import json
 from functools import partial
-from typing import Awaitable
 from typing import Callable
 from typing import Dict
 from typing import Optional
@@ -22,6 +21,8 @@ from prometheus_client import Histogram
 from pydantic import AmqpDsn
 from pydantic import BaseSettings
 from pydantic import parse_obj_as
+
+from .utils import CallbackType
 
 
 logger = structlog.get_logger()
@@ -71,9 +72,6 @@ callbacks_registered = Counter(
 
 class InvalidRegisterCallException(Exception):
     pass
-
-
-CallbackType = Callable[[str, dict], Awaitable]
 
 
 def function_to_name(function: Callable) -> str:
@@ -212,7 +210,7 @@ class AMQPSystem:
         self.stop()
         loop.close()
 
-    async def publish_message(self, routing_key, payload: dict) -> None:
+    async def publish_message(self, routing_key: str, payload: dict) -> None:
         if self._exchange is None:
             raise ValueError("Must call start() before publish message!")
 
@@ -246,6 +244,6 @@ class AMQPSystem:
                     wrapped_callback = processing_time.labels(
                         routing_key, function_name
                     ).time()(wrapped_callback)
-                    await wrapped_callback(routing_key, message)
+                    await wrapped_callback(message)
         except Exception:
             log.exception("Exception during on_message()", routing_key=routing_key)
