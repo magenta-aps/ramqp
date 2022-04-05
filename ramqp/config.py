@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=too-few-public-methods
+"""This module contains the all pydantic BaseSetting(s)."""
 from typing import Optional
 
 from pydantic import AmqpDsn

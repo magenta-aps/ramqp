@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+"""This module contains the Abstract AMQPSystem."""
 import asyncio
 import json
 from abc import ABCMeta
@@ -19,6 +20,7 @@ from aio_pika import IncomingMessage
 from aio_pika import Message
 from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
+from aio_pika.abc import AbstractQueue
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
@@ -41,11 +43,51 @@ from .utils import function_to_name
 logger = structlog.get_logger()
 
 
-class InvalidRegisterCallException(Exception):
-    pass
+async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
+    """AbstractAMQPSystem message handler.
+
+    Handles logging, metrics, retrying and exception handling.
+
+    Args:
+        callback: The callback to call with the message.
+        message: The message to deliver to the callback.
+
+    Returns:
+        None
+    """
+    last_on_message.set_to_current_time()
+
+    assert message.routing_key is not None
+    routing_key = message.routing_key
+    function_name = function_to_name(callback)
+    log = logger.bind(function=function_name, routing_key=routing_key)
+
+    log.debug("Received message")
+    event_counter.labels(routing_key, function_name).inc()
+    try:
+        with exception_callback_counter.labels(
+            routing_key, function_name
+        ).count_exceptions():
+            processing_calls.labels(routing_key, function_name).inc()
+            wrapped_callback = processing_inprogress.labels(
+                routing_key, function_name
+            ).track_inprogress()(callback)
+            wrapped_callback = processing_time.labels(
+                routing_key, function_name
+            ).time()(wrapped_callback)
+            async with message.process(requeue=True):
+                await wrapped_callback(message)
+    except Exception as exception:
+        log.exception("Exception during on_message()")
+        raise exception
 
 
 class AbstractAMQPSystem:
+    """Abstract base-class for AMQPSystems.
+
+    Shared code used by both AMQPSystem and MOAMQPSystem.
+    """
+
     __metaclass__ = ABCMeta
 
     def __init__(self) -> None:
@@ -66,7 +108,46 @@ class AbstractAMQPSystem:
         """
         return self._connection is not None
 
+    def _setup_periodic_metrics(self, queues: Dict[str, AbstractQueue]) -> None:
+        """Setup a periodic job to update non-eventful metrics.
+
+        Args:
+            queues: The aio_pika queues to export periodic metrics for.
+
+        Returns:
+            None
+        """
+        # Setup periodic metrics
+        async def periodic_metrics() -> None:
+            loop = asyncio.get_running_loop()
+            while True:
+                last_periodic.set_to_current_time()
+                last_loop_periodic.set(loop.time())
+                for function_name, queue in queues.items():
+                    backlog_count.labels(function_name).set(
+                        queue.declaration_result.message_count
+                    )
+                await asyncio.sleep(1)
+
+        self._periodic_task = asyncio.create_task(periodic_metrics())
+
     async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        """Start the AMQPSystem.
+
+        This method:
+        * Connects to the AMQP server.
+        * Sets up the AMQP exchange if it does not exist
+        * Creates durable queues for each callback in the callback registry.
+        * Binds routes to the queues according to the callback registry.
+        * Setups up periodic metrics.
+
+        Args:
+            *args: Arguments are forwarded directly to ConnectionSettings.
+            **kwargs: Arguments are forwarded directly to ConnectionSettings.
+
+        Returns:
+            None
+        """
         settings = ConnectionSettings(*args, **kwargs)
 
         assert self._connection is None
@@ -111,7 +192,7 @@ class AbstractAMQPSystem:
             queues[function_name] = queue
 
             log.info("Starting message listener")
-            await queue.consume(partial(self.on_message, callback))  # type: ignore
+            await queue.consume(partial(_on_message, callback))  # type: ignore
 
             log.info("Binding routing keys")
             for routing_key in routing_keys:
@@ -119,21 +200,16 @@ class AbstractAMQPSystem:
                 await queue.bind(self._exchange, routing_key=routing_key)
                 routes_bound.labels(function_name).inc()
 
-        # Setup periodic metrics
-        async def periodic_metrics() -> None:
-            loop = asyncio.get_running_loop()
-            while True:
-                last_periodic.set_to_current_time()
-                last_loop_periodic.set(loop.time())
-                for function_name, queue in queues.items():
-                    backlog_count.labels(function_name).set(
-                        queue.declaration_result.message_count
-                    )
-                await asyncio.sleep(1)
-
-        self._periodic_task = asyncio.create_task(periodic_metrics())
+        self._setup_periodic_metrics(queues)
 
     async def stop(self) -> None:
+        """Stop the AMQPSystem.
+
+        This method disconnects from the AMQP server, and stops the periodic metrics.
+
+        Returns:
+            None
+        """
         if self._periodic_task is not None:
             self._periodic_task.cancel()
             self._periodic_task = None
@@ -149,6 +225,15 @@ class AbstractAMQPSystem:
             self._connection = None
 
     def run_forever(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        """Start the AMQPSystem and run it forever.
+
+        Args:
+            *args: Arguments are forwarded directly to ConnectionSettings.
+            **kwargs: Arguments are forwarded directly to ConnectionSettings.
+
+        Returns:
+            None
+        """
         loop = asyncio.get_event_loop()
         # Setup everything
         loop.run_until_complete(self.start(*args, **kwargs))
@@ -158,38 +243,49 @@ class AbstractAMQPSystem:
         loop.run_until_complete(self.stop())
         loop.close()
 
-    async def on_message(
-        self, callback: CallbackType, message: IncomingMessage
-    ) -> None:
-        last_on_message.set_to_current_time()
-
-        assert message.routing_key is not None
-        routing_key = message.routing_key
-        function_name = function_to_name(callback)
-        log = logger.bind(function=function_name, routing_key=routing_key)
-
-        log.debug("Received message")
-        try:
-            event_counter.labels(routing_key, function_name).inc()
-            async with message.process(requeue=True):
-                with exception_callback_counter.labels(
-                    routing_key, function_name
-                ).count_exceptions():
-                    processing_calls.labels(routing_key, function_name).inc()
-                    wrapped_callback = processing_inprogress.labels(
-                        routing_key, function_name
-                    ).track_inprogress()(callback)
-                    wrapped_callback = processing_time.labels(
-                        routing_key, function_name
-                    ).time()(wrapped_callback)
-                    await wrapped_callback(message)
-        except Exception:
-            log.exception("Exception during on_message()", routing_key=routing_key)
-
     def _register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
+        """Get a decorator for registering callbacks.
+
+        Examples:
+            ```
+            address_create_decorator = amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
+
+            @address_create_decorator
+            def callback1(message: IncomingMessage):
+                pass
+
+            @address_create_decorator
+            def callback2(message: IncomingMessage):
+                pass
+            ```
+            Or directly:
+            ```
+            @amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
+            def callback1(message: IncomingMessage):
+                pass
+
+            @amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
+            def callback2(message: IncomingMessage):
+                pass
+            ```
+
+        Args:
+            routing_key: The routing key to bind messages for.
+
+        Returns:
+            A decorator for registering a function to receive callbacks.
+        """
         assert routing_key != ""
 
         def decorator(function: CallbackType) -> CallbackType:
+            """Registers the given callback and routing key in the callback registry.
+
+            Args:
+                function: The callback to registry.
+
+            Returns:
+                The unmodified given function.
+            """
             function_name = function_to_name(function)
 
             log = logger.bind(routing_key=routing_key, function=function_name)
@@ -198,7 +294,7 @@ class AbstractAMQPSystem:
             if self.started:
                 message = "Cannot register callback after run() has been called!"
                 log.error(message)
-                raise InvalidRegisterCallException(message)
+                raise ValueError(message)
 
             callbacks_registered.labels(routing_key).inc()
             self._registry.setdefault(function, set()).add(routing_key)
@@ -207,6 +303,15 @@ class AbstractAMQPSystem:
         return decorator
 
     async def _publish_message(self, routing_key: str, payload: dict) -> None:
+        """Publish a message to the given routing key.
+
+        Args:
+            routing_key: The routing key to send the message to.
+            payload: The message payload.
+
+        Returns:
+            None
+        """
         if self._exchange is None:
             raise ValueError("Must call start() before publish message!")
 

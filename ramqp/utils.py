@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+"""This module contains the utilities."""
 import json
 from inspect import signature
 from typing import Awaitable
@@ -62,12 +63,11 @@ parameter_map = {
     "body": _decode_body,
     "message": lambda message: message,
     "message_id": lambda message: message.message_id,
-    "payload": lambda message: _parse_payload(message),
+    "payload": _parse_payload,
     "routing_key": lambda message: message.routing_key,
 }
 
 
-# TODO: Should we integration this directly with amqpsystem?
 def pass_arguments(function: Callable) -> CallbackType:
     """Decorator which automatically transform parameters as desired.
 

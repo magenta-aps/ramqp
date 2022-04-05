@@ -1,65 +1,20 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
-import json
+"""This module tests the pass_arguments decorator."""
 from typing import Any
 from typing import Dict
 
-import pytest
-from aio_pika import DeliveryMode
 from aio_pika import IncomingMessage
-from aio_pika import Message
-from ra_utils.attrdict import attrdict
 
 from ramqp.utils import pass_arguments
 
 
-@pytest.fixture
-def aio_pika_message() -> Message:
-    payload = {"key": "value"}
-    message = Message(body=json.dumps(payload).encode("utf-8"))
-    message.channel = None
-    message.header = attrdict(
-        {
-            "properties": attrdict(
-                {
-                    "expiration": None,
-                    "content_type": None,
-                    "content_encoding": None,
-                    "delivery_mode": DeliveryMode.NOT_PERSISTENT,
-                    "headers": {},
-                    "priority": 0,
-                    "correlation_id": None,
-                    "reply_to": None,
-                    "message_id": "6800cb934bf94cc68009fe04ac91c972",
-                    "timestamp": None,
-                    "message_type": None,
-                    "user_id": None,
-                    "app_id": None,
-                    "cluster_id": "",
-                }
-            )
-        }
-    )
-    message.consumer_tag = "ctag1.6e914f0225204a178566370cd93c8b40"
-    message.delivery_tag = 1
-    message.exchange = "9t6wzzmlBcaopTLF1aOPgnnd8szMSU"
-    message.message_count = None
-    message.redelivered = False
-    message.routing_key = "test.routing.key"
-    return message
-
-
-@pytest.fixture
-def aio_pika_incoming_message(aio_pika_message: Message) -> IncomingMessage:
-    # TODO: We should convert Message to DeliveredMessage first
-    return IncomingMessage(aio_pika_message)  # type: ignore
-
-
 async def test_message_mock(aio_pika_incoming_message: IncomingMessage) -> None:
+    """Test that our message fixture works."""
     params = {}
 
-    async def callback(message: IncomingMessage) -> None:
+    async def callback(_: IncomingMessage) -> None:
         params["callback_called"] = True
 
     await callback(aio_pika_incoming_message)
@@ -69,6 +24,7 @@ async def test_message_mock(aio_pika_incoming_message: IncomingMessage) -> None:
 async def test_pass_arguments_message(
     aio_pika_incoming_message: IncomingMessage,
 ) -> None:
+    """Test that pass_arguments can pass/noop the message."""
     params = {}
 
     @pass_arguments
@@ -82,6 +38,7 @@ async def test_pass_arguments_message(
 async def test_pass_arguments_message_id(
     aio_pika_incoming_message: IncomingMessage,
 ) -> None:
+    """Test that pass_arguments can extract the message id."""
     params = {}
 
     @pass_arguments
@@ -95,6 +52,7 @@ async def test_pass_arguments_message_id(
 async def test_pass_arguments_payload(
     aio_pika_incoming_message: IncomingMessage,
 ) -> None:
+    """Test that pass_arguments can extract and parse the payload."""
     params = {}
 
     @pass_arguments
@@ -108,6 +66,7 @@ async def test_pass_arguments_payload(
 async def test_pass_arguments_routing_key(
     aio_pika_incoming_message: IncomingMessage,
 ) -> None:
+    """Test that pass_arguments can extract the routing key."""
     params = {}
 
     @pass_arguments
@@ -119,6 +78,7 @@ async def test_pass_arguments_routing_key(
 
 
 async def test_pass_arguments_body(aio_pika_incoming_message: IncomingMessage) -> None:
+    """Test that pass_arguments can extract the message body."""
     params = {}
 
     @pass_arguments
@@ -132,6 +92,7 @@ async def test_pass_arguments_body(aio_pika_incoming_message: IncomingMessage) -
 async def test_pass_arguments_multiple(
     aio_pika_incoming_message: IncomingMessage,
 ) -> None:
+    """Test that pass_arguments can handle multiple parameters."""
     params: Dict[str, Any] = {}
 
     @pass_arguments
@@ -140,7 +101,8 @@ async def test_pass_arguments_multiple(
         params["routing_key"] = routing_key
         params["payload"] = payload
 
-    await callback(aio_pika_incoming_message)
+    # pylint does not understand that pass_arguments changes the signature
+    await callback(aio_pika_incoming_message)  # pylint: disable=no-value-for-parameter
     assert params["body"] == '{"key": "value"}'
     assert params["routing_key"] == "test.routing.key"
     assert params["payload"] == {"key": "value"}
@@ -149,6 +111,7 @@ async def test_pass_arguments_multiple(
 async def test_pass_arguments_multiple_reorder(
     aio_pika_incoming_message: IncomingMessage,
 ) -> None:
+    """Test that pass_arguments can handle parameters in any order."""
     params: Dict[str, Any] = {}
 
     @pass_arguments
@@ -157,7 +120,8 @@ async def test_pass_arguments_multiple_reorder(
         params["routing_key"] = routing_key
         params["payload"] = payload
 
-    await callback(aio_pika_incoming_message)
+    # pylint does not understand that pass_arguments changes the signature
+    await callback(aio_pika_incoming_message)  # pylint: disable=no-value-for-parameter
     assert params["body"] == '{"key": "value"}'
     assert params["routing_key"] == "test.routing.key"
     assert params["payload"] == {"key": "value"}

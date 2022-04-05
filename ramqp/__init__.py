@@ -2,5 +2,5 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 # flake8: noqa
-from .abstract_amqpsystem import InvalidRegisterCallException
+"""This module defines the public interface of the RAMQP package."""
 from .amqpsystem import AMQPSystem

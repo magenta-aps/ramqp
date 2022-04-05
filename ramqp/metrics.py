@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+"""This module contains the all prometheus metrics."""
 from prometheus_client import Counter
 from prometheus_client import Gauge
 from prometheus_client import Histogram
