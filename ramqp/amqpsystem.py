@@ -59,7 +59,8 @@ class AMQPSystem:
 
         self._periodic_task: Optional[asyncio.Task] = None
 
-    def has_started(self) -> bool:
+    @property
+    def started(self) -> bool:
         return self._started
 
     def register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
@@ -71,7 +72,7 @@ class AMQPSystem:
             log = logger.bind(routing_key=routing_key, function=function_name)
             log.info("Register called")
 
-            if self._started:
+            if self.started:
                 message = "Cannot register callback after run() has been called!"
                 log.error(message)
                 raise InvalidRegisterCallException(message)

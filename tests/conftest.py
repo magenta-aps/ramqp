@@ -29,7 +29,7 @@ def amqp_system_creator() -> Callable[..., AMQPSystem]:
     def make_amqp_system(*args: List[Any], **kwargs: Dict[str, Any]) -> AMQPSystem:
         amqp_system = AMQPSystem(*args, **kwargs)
         # Assert initial configuration
-        assert amqp_system.has_started() is False
+        assert amqp_system.started is False
         assert amqp_system._registry == {}
         return amqp_system
 

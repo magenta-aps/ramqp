@@ -110,6 +110,6 @@ async def test_publish_before_start(amqp_system: AMQPSystem) -> None:
 def test_has_started(amqp_system: AMQPSystem) -> None:
     moamqp_system = MOAMQPSystem(amqp_system)
     # Fake that the system has started
-    assert moamqp_system.has_started() is False
+    assert moamqp_system.started is False
     amqp_system._started = True
-    assert moamqp_system.has_started() is True
+    assert moamqp_system.started is True

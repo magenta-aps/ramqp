@@ -93,8 +93,9 @@ class MOAMQPSystem:
     def __init__(self, amqp_system: Optional[AMQPSystem] = None) -> None:
         self._amqp_system = amqp_system or AMQPSystem()
 
-    def has_started(self) -> bool:
-        return self._amqp_system.has_started()
+    @property
+    def started(self) -> bool:
+        return self._amqp_system.started
 
     def register(
         self,
