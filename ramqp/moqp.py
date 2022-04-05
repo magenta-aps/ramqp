@@ -18,7 +18,6 @@ from aio_pika import IncomingMessage
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pydantic import parse_raw_as
-from pydantic import validator
 
 from .amqpsystem import AMQPSystem
 
@@ -69,15 +68,6 @@ class PayloadType(BaseModel):
     uuid: UUID
     object_uuid: UUID
     time: datetime
-
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-        }
-
-    @validator("time", pre=True)
-    def time_validate(cls, v: Any) -> Any:
-        return datetime.fromisoformat(v)
 
 
 MOCallbackType = Callable[[str, PayloadType], Awaitable]
