@@ -84,17 +84,17 @@ class AMQPSystem:
         return decorator
 
     async def stop(self) -> None:
-        if self._periodic_task:
+        if self._periodic_task is not None:
             self._periodic_task.cancel()
             self._periodic_task = None
 
         self._exchange = None
 
-        if self._channel:
+        if self._channel is not None:
             await self._channel.close()
             self._channel = None
 
-        if self._connection:
+        if self._connection is not None:
             await self._connection.close()
             self._connection = None
 
