@@ -83,7 +83,7 @@ def test_run_forever(amqp_system: AMQPSystem) -> None:
     moamqp_system.run_forever()
 
 
-async def test_publish_before_start(amqp_system: AMQPSystem) -> None:
+async def test_cannot_publish_before_start(amqp_system: AMQPSystem) -> None:
     routing_key = (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
     payload = parse_obj_as(
         PayloadType,

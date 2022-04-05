@@ -49,7 +49,7 @@ def test_run_forever(amqp_system: AMQPSystem) -> None:
     amqp_system.run_forever()
 
 
-async def test_publish_before_start(amqp_system: AMQPSystem) -> None:
+async def test_cannot_publish_before_start(amqp_system: AMQPSystem) -> None:
     with pytest.raises(ValueError):
         await amqp_system.publish_message("test.routing.key", {"key": "value"})
 
