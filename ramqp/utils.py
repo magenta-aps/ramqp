@@ -9,20 +9,14 @@ from typing import cast
 
 import structlog
 from aio_pika import IncomingMessage
-from prometheus_client import Counter
+
+from .metrics import exception_parse_counter
 
 
 logger = structlog.get_logger()
 
 
 CallbackType = Callable[[IncomingMessage], Awaitable]
-
-
-exception_parse_counter = Counter(
-    "amqp_exceptions_parse",
-    "Exception counter",
-    ["routing_key"],
-)
 
 
 def _decode_body(message: IncomingMessage) -> str:

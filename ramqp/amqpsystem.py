@@ -20,59 +20,24 @@ from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
-from prometheus_client import Counter
-from prometheus_client import Gauge
-from prometheus_client import Histogram
 from pydantic import AmqpDsn
 from pydantic import BaseSettings
 from pydantic import parse_obj_as
 
+from .metrics import backlog_count
+from .metrics import callbacks_registered
+from .metrics import event_counter
+from .metrics import exception_callback_counter
+from .metrics import last_loop_periodic
+from .metrics import last_on_message
+from .metrics import last_periodic
+from .metrics import processing_calls
+from .metrics import processing_inprogress
+from .metrics import processing_time
+from .metrics import routes_bound
 from .utils import CallbackType
 
-
 logger = structlog.get_logger()
-
-
-event_counter = Counter("amqp_events", "AMQP Events", ["routing_key", "function_name"])
-exception_callback_counter = Counter(
-    "amqp_exceptions_callback",
-    "Exception counter",
-    ["routing_key", "function"],
-)
-processing_time = Histogram(
-    "amqp_processing_seconds",
-    "Time spent running callback",
-    ["routing_key", "function"],
-)
-processing_inprogress = Gauge(
-    "amqp_inprogress",
-    "Number of callbacks currently running",
-    ["routing_key", "function"],
-)
-processing_calls = Counter(
-    "amqp_calls",
-    "Number of callbacks made",
-    ["routing_key", "function"],
-)
-last_on_message = Gauge("amqp_last_on_message", "Timestamp of the last on_message call")
-last_periodic = Gauge("amqp_last_periodic", "Timestamp of the last periodic call")
-last_loop_periodic = Gauge(
-    "amqp_last_loop_periodic", "Timestamp (monotonic) of the last periodic call"
-)
-last_heartbeat = Gauge(
-    "amqp_last_heartbeat", "Timestamp (monotonic) of the last connection heartbeat"
-)
-backlog_count = Gauge(
-    "amqp_backlog",
-    "Number of messages waiting for processing in the backlog",
-    ["function"],
-)
-routes_bound = Counter(
-    "amqp_routes_bound", "Number of routing-keys bound to the queue", ["function"]
-)
-callbacks_registered = Counter(
-    "amqp_callbacks_registered", "Number of callbacks registered", ["routing_key"]
-)
 
 
 class InvalidRegisterCallException(Exception):
@@ -197,7 +162,6 @@ class AMQPSystem:
             while True:
                 last_periodic.set_to_current_time()
                 last_loop_periodic.set(loop.time())
-                # last_heartbeat.set(self._connection.heartbeat_last)  # type: ignore
                 for function_name, queue in queues.items():
                     backlog_count.labels(function_name).set(
                         queue.declaration_result.message_count
