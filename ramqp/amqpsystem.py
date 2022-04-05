@@ -106,9 +106,11 @@ class AMQPSystem:
 
         logger.info(
             "Establishing AMQP connection",
-            url=settings.amqp_url.replace(
-                ":" + (settings.amqp_url.password or ""), ":xxxxx"
-            ),
+            scheme=settings.amqp_url.scheme,
+            user=settings.amqp_url.user,
+            host=settings.amqp_url.host,
+            port=settings.amqp_url.port,
+            path=settings.amqp_url.path,
         )
         self._connection = await connect_robust(settings.amqp_url)
 
