@@ -50,7 +50,6 @@ def function_to_name(function: Callable) -> str:
 
 class AMQPSystem:
     def __init__(self) -> None:
-        self._started: bool = False
         self._registry: Dict[CallbackType, Set[str]] = {}
 
         self._connection: Optional[AbstractRobustConnection] = None
@@ -61,7 +60,7 @@ class AMQPSystem:
 
     @property
     def started(self) -> bool:
-        return self._started
+        return self._connection is not None
 
     def register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
         assert routing_key != ""
@@ -101,7 +100,6 @@ class AMQPSystem:
     async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
         settings = ConnectionSettings(*args, **kwargs)
 
-        self._started = True
         assert self._connection is None
         assert self._channel is None
         assert self._exchange is None

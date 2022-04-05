@@ -111,5 +111,5 @@ def test_has_started(amqp_system: AMQPSystem) -> None:
     moamqp_system = MOAMQPSystem(amqp_system)
     # Fake that the system has started
     assert moamqp_system.started is False
-    amqp_system._started = True
+    amqp_system._connection = {}  # type: ignore
     assert moamqp_system.started is True

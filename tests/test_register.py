@@ -35,7 +35,7 @@ def test_register(amqp_system: AMQPSystem, log_output: LogCapture) -> None:
 def test_register_after_start(amqp_system: AMQPSystem, log_output: LogCapture) -> None:
     # Fake that the system has started
     assert amqp_system.started is False
-    amqp_system._started = True
+    amqp_system._connection = {}  # type: ignore
     assert amqp_system.started is True
 
     # Cannot call register after system has started
