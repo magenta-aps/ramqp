@@ -9,9 +9,7 @@ from typing import Any
 from typing import Awaitable
 from typing import Callable
 from typing import cast
-from typing import Dict
 from typing import List
-from typing import Optional
 from uuid import UUID
 
 from aio_pika import IncomingMessage
@@ -19,7 +17,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pydantic import parse_raw_as
 
-from .amqpsystem import AMQPSystem
+from .abstract_amqpsystem import AbstractAMQPSystem
 
 
 class AutoNameEnum(Enum):
@@ -79,14 +77,7 @@ def mo_routing_key(
     return ".".join([service_type, object_type, request_type])
 
 
-class MOAMQPSystem:
-    def __init__(self, amqp_system: Optional[AMQPSystem] = None) -> None:
-        self._amqp_system = amqp_system or AMQPSystem()
-
-    @property
-    def started(self) -> bool:
-        return self._amqp_system.started
-
+class MOAMQPSystem(AbstractAMQPSystem):
     def register(
         self,
         service_type: ServiceType,
@@ -94,7 +85,7 @@ class MOAMQPSystem:
         request_type: RequestType,
     ) -> Callable:
         routing_key = mo_routing_key(service_type, object_type, request_type)
-        amqp_decorator = self._amqp_system.register(routing_key)
+        amqp_decorator = self._register(routing_key)
 
         def decorator(function: MOCallbackType) -> MOCallbackType:
             async def wrapper(message: IncomingMessage) -> None:
@@ -108,15 +99,6 @@ class MOAMQPSystem:
 
         return decorator
 
-    async def stop(self) -> None:
-        await self._amqp_system.stop()
-
-    async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
-        await self._amqp_system.start(*args, **kwargs)
-
-    def run_forever(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
-        self._amqp_system.run_forever(*args, **kwargs)
-
     async def publish_message(
         self,
         service_type: ServiceType,
@@ -126,4 +108,4 @@ class MOAMQPSystem:
     ) -> None:
         routing_key = mo_routing_key(service_type, object_type, request_type)
         payload_obj = jsonable_encoder(payload)
-        await self._amqp_system.publish_message(routing_key, payload_obj)
+        await self._publish_message(routing_key, payload_obj)

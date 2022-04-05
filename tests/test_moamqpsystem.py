@@ -13,7 +13,6 @@ import pytest
 from pydantic import parse_obj_as
 
 from .common import random_string
-from ramqp import AMQPSystem
 from ramqp.moqp import MOAMQPSystem
 from ramqp.moqp import ObjectType
 from ramqp.moqp import PayloadType
@@ -41,8 +40,7 @@ def moamqp_test(amqp_system_creator: Callable) -> Callable:
             await callback(*args, **kwargs)
             event.set()
 
-        inner_amqp_system = amqp_system_creator()
-        amqp_system = MOAMQPSystem(inner_amqp_system)
+        amqp_system = amqp_system_creator(MOAMQPSystem)
         amqp_system.register(*routing_key)(callback_wrapper)
         await amqp_system.start(
             queue_name=queue_name,  # type: ignore
@@ -71,19 +69,18 @@ async def test_happy_path(moamqp_test: Callable) -> None:
     assert params["routing_key"] == "EMPLOYEE.ADDRESS.CREATE"
 
 
-def test_run_forever(amqp_system: AMQPSystem) -> None:
+def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
     # Instead of starting, shutdown the event-loop
     async def start(*args: List[Any], **kwargs: Dict[str, Any]) -> None:
         loop = asyncio.get_running_loop()
         loop.stop()
 
     # mypy says: Cannot assign to a method, we ignore it
-    moamqp_system = MOAMQPSystem(amqp_system)
-    moamqp_system._amqp_system.start = start  # type: ignore
+    moamqp_system.start = start  # type: ignore
     moamqp_system.run_forever()
 
 
-async def test_cannot_publish_before_start(amqp_system: AMQPSystem) -> None:
+async def test_cannot_publish_before_start(moamqp_system: MOAMQPSystem) -> None:
     routing_key = (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
     payload = parse_obj_as(
         PayloadType,
@@ -94,14 +91,12 @@ async def test_cannot_publish_before_start(amqp_system: AMQPSystem) -> None:
         },
     )
 
-    moamqp_system = MOAMQPSystem(amqp_system)
     with pytest.raises(ValueError):
         await moamqp_system.publish_message(*routing_key, payload)
 
 
-def test_has_started(amqp_system: AMQPSystem) -> None:
-    moamqp_system = MOAMQPSystem(amqp_system)
+def test_has_started(moamqp_system: MOAMQPSystem) -> None:
     # Fake that the system has started
     assert moamqp_system.started is False
-    amqp_system._connection = {}  # type: ignore
+    moamqp_system._connection = {}  # type: ignore
     assert moamqp_system.started is True

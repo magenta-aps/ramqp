@@ -6,7 +6,7 @@ from typing import cast
 from .common import callback_func
 from .common import callback_func2
 from ramqp import AMQPSystem
-from ramqp.amqpsystem import callbacks_registered
+from ramqp.metrics import callbacks_registered
 
 
 def get_callback_metric_value(routing_key: str) -> float:

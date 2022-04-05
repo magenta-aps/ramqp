@@ -19,6 +19,11 @@ logger = structlog.get_logger()
 CallbackType = Callable[[IncomingMessage], Awaitable]
 
 
+def function_to_name(function: Callable) -> str:
+    """Get a uniquely qualified name for a given function."""
+    return function.__name__
+
+
 def _decode_body(message: IncomingMessage) -> str:
     """Decode the message body into a string.
 

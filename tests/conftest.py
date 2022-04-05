@@ -3,15 +3,18 @@
 # SPDX-License-Identifier: MPL-2.0
 from typing import Any
 from typing import Callable
-from typing import Dict
+from typing import cast
 from typing import Iterator
-from typing import List
+from typing import Optional
+from typing import Type
 
 import pytest
 import structlog
 from structlog.testing import LogCapture
 
 from ramqp import AMQPSystem
+from ramqp.abstract_amqpsystem import AbstractAMQPSystem
+from ramqp.moqp import MOAMQPSystem
 
 
 @pytest.fixture
@@ -25,9 +28,12 @@ def fixture_configure_structlog(log_output: LogCapture) -> None:
 
 
 @pytest.fixture
-def amqp_system_creator() -> Callable[..., AMQPSystem]:
-    def make_amqp_system(*args: List[Any], **kwargs: Dict[str, Any]) -> AMQPSystem:
-        amqp_system = AMQPSystem(*args, **kwargs)
+def amqp_system_creator() -> Callable[..., AbstractAMQPSystem]:
+    def make_amqp_system(
+        amqp_system_class: Optional[Type[AbstractAMQPSystem]] = None,
+    ) -> AbstractAMQPSystem:
+        amqp_system_class = amqp_system_class or AMQPSystem
+        amqp_system = amqp_system_class()
         # Assert initial configuration
         assert amqp_system.started is False
         assert amqp_system._registry == {}
@@ -38,7 +44,14 @@ def amqp_system_creator() -> Callable[..., AMQPSystem]:
 
 @pytest.fixture
 def amqp_system(amqp_system_creator: Callable[..., AMQPSystem]) -> AMQPSystem:
-    return amqp_system_creator()
+    return cast(AMQPSystem, amqp_system_creator(AMQPSystem))
+
+
+@pytest.fixture
+def moamqp_system(
+    amqp_system_creator: Callable[..., AbstractAMQPSystem]
+) -> MOAMQPSystem:
+    return cast(MOAMQPSystem, amqp_system_creator(MOAMQPSystem))
 
 
 def has_elements(iterator: Iterator) -> bool:
