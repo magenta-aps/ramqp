@@ -64,7 +64,12 @@ amqp_system = MOAMQPSystem()
 # Thus it will be retried immediately.
 @amqp_system.register(ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT)
 @amqp_system.register(ServiceType.ORG_UNIT, ObjectType.IT, RequestType.CREATE)
-async def callback_function(routing_key: str, payload: PayloadType) -> None:
+async def callback_function(
+    service_type: ServiceType,
+    object_type: ObjectType,
+    request_type: RequestType,
+    payload: PayloadType
+) -> None:
     # The arguments to this function is fixed, `@pass_arguments` cannot be used.
     pass
 

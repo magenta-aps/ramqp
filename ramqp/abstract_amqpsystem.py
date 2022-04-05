@@ -59,6 +59,11 @@ class AbstractAMQPSystem:
 
     @property
     def started(self) -> bool:
+        """Whether a connection has been made.
+
+        Returns:
+            Whether a connection has been made.
+        """
         return self._connection is not None
 
     async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:

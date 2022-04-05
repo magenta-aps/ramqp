@@ -22,6 +22,7 @@ reorder-python-imports = "^3.0.1"
 mypy = "^0.942"
 pre-commit = "^2.18.1"
 ra-utils = "^1.0.0"
+hypothesis = "^6.41.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
