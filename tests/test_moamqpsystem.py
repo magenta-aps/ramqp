@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 import asyncio
-import random
-import string
 from datetime import datetime
 from typing import Any
 from typing import Callable
@@ -14,19 +12,13 @@ from uuid import uuid4
 import pytest
 from pydantic import parse_obj_as
 
+from .common import random_string
 from ramqp import AMQPSystem
 from ramqp.moqp import MOAMQPSystem
 from ramqp.moqp import ObjectType
 from ramqp.moqp import PayloadType
 from ramqp.moqp import RequestType
 from ramqp.moqp import ServiceType
-
-
-def random_string(length: int = 30) -> str:
-    return "".join(
-        random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits)
-        for _ in range(length)
-    )
 
 
 @pytest.fixture

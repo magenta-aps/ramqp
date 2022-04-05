@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 import asyncio
-import random
-import string
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -12,15 +10,9 @@ from typing import List
 import pytest
 from aio_pika import IncomingMessage
 
+from .common import random_string
 from ramqp import AMQPSystem
 from ramqp.utils import pass_arguments
-
-
-def random_string(length: int = 30) -> str:
-    return "".join(
-        random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits)
-        for _ in range(length)
-    )
 
 
 @pytest.fixture
