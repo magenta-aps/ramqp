@@ -20,10 +20,8 @@ from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
-from pydantic import AmqpDsn
-from pydantic import BaseSettings
-from pydantic import parse_obj_as
 
+from .config import ConnectionSettings
 from .metrics import backlog_count
 from .metrics import callbacks_registered
 from .metrics import event_counter
@@ -37,6 +35,7 @@ from .metrics import processing_time
 from .metrics import routes_bound
 from .utils import CallbackType
 
+
 logger = structlog.get_logger()
 
 
@@ -47,12 +46,6 @@ class InvalidRegisterCallException(Exception):
 def function_to_name(function: Callable) -> str:
     """Get a uniquely qualified name for a given function."""
     return function.__name__
-
-
-class ConnectionSettings(BaseSettings):
-    queue_name: Optional[str]
-    amqp_url: AmqpDsn = parse_obj_as(AmqpDsn, "amqp://guest:guest@localhost:5672")
-    amqp_exchange: str = "os2mo"
 
 
 class AMQPSystem:
