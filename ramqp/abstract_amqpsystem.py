@@ -75,6 +75,7 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
             wrapped_callback = processing_time.labels(
                 routing_key, function_name
             ).time()(wrapped_callback)
+            # Requeue messages on exceptions, so they can be retried.
             async with message.process(requeue=True):
                 await wrapped_callback(message)
     except Exception as exception:
@@ -171,8 +172,9 @@ class AbstractAMQPSystem:
         logger.info(
             "Attaching AMQP exchange to channel", exchange=settings.amqp_exchange
         )
+        # Make our exchange durable so it survives broker restarts
         self._exchange = await self._channel.declare_exchange(
-            settings.amqp_exchange, ExchangeType.TOPIC
+            settings.amqp_exchange, ExchangeType.TOPIC, durable=True
         )
 
         # We expect function_to_name to be unique for each callback
@@ -188,6 +190,7 @@ class AbstractAMQPSystem:
 
             queue_name = f"{settings.queue_prefix}_{function_name}"
             log.info("Declaring unique message queue", queue_name=queue_name)
+            # Make our queues durable so they survive broker restarts
             queue = await self._channel.declare_queue(queue_name, durable=True)
             queues[function_name] = queue
 
