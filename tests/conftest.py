@@ -95,7 +95,7 @@ def amqp_test(amqp_system: AMQPSystem) -> Callable:
     async def make_amqp_test(callback: Callable) -> None:
         """Setup an integration-test AMQPSystem, send a message to the callback."""
         test_id = random_string()
-        queue_name = f"test_{test_id}"
+        queue_prefix = f"test_{test_id}"
         routing_key = "test.routing.key"
         payload = {"value": test_id}
         event = asyncio.Event()
@@ -106,7 +106,7 @@ def amqp_test(amqp_system: AMQPSystem) -> Callable:
 
         amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
         await amqp_system.start(
-            queue_name=queue_name,  # type: ignore
+            queue_prefix=queue_prefix,  # type: ignore
             amqp_exchange=test_id,  # type: ignore
         )
         await amqp_system.publish_message(routing_key, payload)
@@ -146,7 +146,7 @@ def moamqp_test(
     async def make_amqp_test(callback: MOCallbackType) -> None:
         """Setup an integration-test MOAMQPSystem, send a message to the callback."""
         test_id = random_string()
-        queue_name = f"test_{test_id}"
+        queue_prefix = f"test_{test_id}"
         event = asyncio.Event()
 
         async def callback_wrapper(*args: List[Any], **kwargs: Dict[str, Any]) -> None:
@@ -156,7 +156,7 @@ def moamqp_test(
         amqp_system = moamqp_system
         amqp_system.register(*mo_routing_tuple)(callback_wrapper)
         await amqp_system.start(
-            queue_name=queue_name,  # type: ignore
+            queue_prefix=queue_prefix,  # type: ignore
             amqp_exchange=test_id,  # type: ignore
         )
         await amqp_system.publish_message(*mo_routing_tuple, mo_payload)

@@ -34,7 +34,7 @@ async def callback_function(routing_key: str) -> None:
     # If the decorator is not used, the raw aio_pika.IncomingMessage is provided.
     pass
 
-amqp_system.run_forever(queue_name="my-program")
+amqp_system.run_forever(queue_prefix="my-program")
 ```
 
 Sending:
@@ -73,7 +73,7 @@ async def callback_function(
     # The arguments to this function is fixed, `@pass_arguments` cannot be used.
     pass
 
-amqp_system.run_forever(queue_name="my-program")
+amqp_system.run_forever(queue_prefix="my-program")
 ```
 
 Sending:

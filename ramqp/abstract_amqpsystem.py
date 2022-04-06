@@ -178,7 +178,7 @@ class AbstractAMQPSystem:
         # We expect function_to_name to be unique for each callback
         assert all_unique(map(function_to_name, self._registry.keys()))
         if self._registry:
-            assert settings.queue_name is not None
+            assert settings.queue_prefix is not None
 
         # TODO: Create queues and binds in parallel?
         queues = {}
@@ -186,7 +186,7 @@ class AbstractAMQPSystem:
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
 
-            queue_name = f"{settings.queue_name}_{function_name}"
+            queue_name = f"{settings.queue_prefix}_{function_name}"
             log.info("Declaring unique message queue", queue_name=queue_name)
             queue = await self._channel.declare_queue(queue_name, durable=True)
             queues[function_name] = queue

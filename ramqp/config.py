@@ -17,7 +17,7 @@ class ConnectionSettings(BaseSettings):
     to the AMQPSystem.start method via. args / kwargs.
 
     Attributes:
-        queue_name:
+        queue_prefix:
             Program specific queue name prefix, should be globally unique, but
             consistent across program restarts. The program name is a good candidate.
 
@@ -31,6 +31,6 @@ class ConnectionSettings(BaseSettings):
             but can be overridden for integration specific exchanges.
     """
 
-    queue_name: Optional[str]
+    queue_prefix: Optional[str]
     amqp_url: AmqpDsn = parse_obj_as(AmqpDsn, "amqp://guest:guest@localhost:5672")
     amqp_exchange: str = "os2mo"
