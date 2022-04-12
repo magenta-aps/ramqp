@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2022 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+
+stages:
+  - lint
+  - test
+  - coverage
+  - release
+
+include:
+  - project: labs/salt-automation
+    ref: master
+    file: /gitlab-ci-templates/common/autopub.v1.yml
+  - project: labs/salt-automation
+    ref: master
+    file: gitlab-ci-templates/python/pytest-meta.v1.yml
+  - project: labs/salt-automation
+    ref: master
+    file: gitlab-ci-templates/python/pypi.v1.yml
+
+
+Pre-commit:
+  stage: lint
+  interruptible: true
+  needs: []
+  image: python:3.8
+  before_script:
+    - pip install --no-cache-dir poetry
+    - poetry install
+  script:
+    - poetry run pre-commit run --all-files
+
+Test:
+  extends: .pytest
+  variables:
+    PYTEST_COV_MODULE: ramqp
+    PYTEST_EXTRA_FLAGS: "-m unittest"
+
+Integration-test:
+  extends: .pytest
+  services:
+    - name: rabbitmq:3
+      alias: rabbitmq
+  variables:
+    PYTEST_COV_MODULE: ramqp
+    PYTEST_EXTRA_FLAGS: "-m integrationtest"
+
+    AMQP_URL: "amqp://guest:guest@rabbitmq:5672"
+
+Export Integration-test coverage:
+  extends: .export_coverage
+  needs:
+    - Test
+    - Integration-test
+
+Check Integration-test coverage:
+  extends: .check_coverage
+  needs:
+    - Test
+    - Integration-test
