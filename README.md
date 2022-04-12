@@ -97,6 +97,17 @@ await amqp_system.publish_message(
 await amqp_system.stop()
 ```
 
+### Metrics
+RAMQP exports a myraid of prometheus metrics via `prometheus/client_python`.
+
+These can be exported using:
+```
+from prometheus_client import start_http_server
+
+start_http_server(8000)
+```
+Or similar, see the promethues client library for details.
+
 ## Development
 
 ### Prerequisites

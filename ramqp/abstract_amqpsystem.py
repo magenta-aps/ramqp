@@ -5,6 +5,7 @@
 import asyncio
 import json
 from abc import ABCMeta
+from contextlib import contextmanager
 from functools import partial
 from typing import Any
 from typing import Callable
@@ -27,7 +28,6 @@ from more_itertools import all_unique
 from .config import ConnectionSettings
 from .metrics import backlog_count
 from .metrics import callbacks_registered
-from .metrics import event_counter
 from .metrics import exception_callback_counter
 from .metrics import last_loop_periodic
 from .metrics import last_on_message
@@ -41,6 +41,24 @@ from .utils import function_to_name
 
 
 logger = structlog.get_logger()
+
+
+@contextmanager
+def _handle_metrics(*labels: List[Any]) -> None:
+    """Expose metrics about a callback.
+
+    Args:
+        labels: Labels to apply to the metrics.
+
+    Returns:
+        None
+    """
+    processing_calls.labels(*labels).inc()
+
+    with exception_callback_counter.labels(*labels).count_exceptions():
+        with processing_inprogress.labels(*labels).track_inprogress():
+            with processing_time.labels(*labels).time():
+                yield
 
 
 async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
@@ -63,21 +81,11 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
     log = logger.bind(function=function_name, routing_key=routing_key)
 
     log.debug("Received message")
-    event_counter.labels(routing_key, function_name).inc()
     try:
-        with exception_callback_counter.labels(
-            routing_key, function_name
-        ).count_exceptions():
-            processing_calls.labels(routing_key, function_name).inc()
-            wrapped_callback = processing_inprogress.labels(
-                routing_key, function_name
-            ).track_inprogress()(callback)
-            wrapped_callback = processing_time.labels(
-                routing_key, function_name
-            ).time()(wrapped_callback)
+        with _handle_metrics(routing_key, function_name):
             # Requeue messages on exceptions, so they can be retried.
             async with message.process(requeue=True):
-                await wrapped_callback(message)
+                await callback(message)
     except Exception as exception:
         log.exception("Exception during on_message()")
         raise exception
@@ -151,9 +159,17 @@ class AbstractAMQPSystem:
         """
         settings = ConnectionSettings(*args, **kwargs)
 
+        # We expect no active connections to be established
         assert self._connection is None
         assert self._channel is None
         assert self._exchange is None
+
+        # We expect function_to_name to be unique for each callback
+        assert all_unique(map(function_to_name, self._registry.keys()))
+
+        # We except queue_prefix to be set if any callbacks are registered
+        if self._registry:
+            assert settings.queue_prefix is not None
 
         logger.info(
             "Establishing AMQP connection",
@@ -176,11 +192,6 @@ class AbstractAMQPSystem:
         self._exchange = await self._channel.declare_exchange(
             settings.amqp_exchange, ExchangeType.TOPIC, durable=True
         )
-
-        # We expect function_to_name to be unique for each callback
-        assert all_unique(map(function_to_name, self._registry.keys()))
-        if self._registry:
-            assert settings.queue_prefix is not None
 
         # TODO: Create queues and binds in parallel?
         queues = {}

@@ -6,7 +6,6 @@ from prometheus_client import Counter
 from prometheus_client import Gauge
 from prometheus_client import Histogram
 
-event_counter = Counter("amqp_events", "AMQP Events", ["routing_key", "function_name"])
 exception_callback_counter = Counter(
     "amqp_exceptions_callback",
     "Exception counter",
