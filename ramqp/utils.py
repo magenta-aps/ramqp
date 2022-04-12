@@ -25,7 +25,7 @@ def function_to_name(function: Callable) -> str:
     return function.__name__
 
 
-def _decode_body(message: IncomingMessage) -> str:
+def decode_body(message: IncomingMessage) -> str:
     """Decode the message body into a string.
 
     Args:
@@ -41,7 +41,7 @@ def _decode_body(message: IncomingMessage) -> str:
     return decoded
 
 
-def _parse_payload(message: IncomingMessage) -> dict:
+def parse_payload(message: IncomingMessage) -> dict:
     """Parse the message body as json.
 
     Args:
@@ -52,7 +52,7 @@ def _parse_payload(message: IncomingMessage) -> dict:
     """
     routing_key = message.routing_key
     with exception_parse_counter.labels(routing_key).count_exceptions():
-        decoded = _decode_body(message)
+        decoded = decode_body(message)
         payload = json.loads(decoded)
     logger.debug("Parsed body", routing_key=routing_key, payload=payload)
     return cast(dict, payload)
@@ -60,10 +60,10 @@ def _parse_payload(message: IncomingMessage) -> dict:
 
 # Map af parameters supported by pass_arguments
 parameter_map = {
-    "body": _decode_body,
+    "body": decode_body,
     "message": lambda message: message,
     "message_id": lambda message: message.message_id,
-    "payload": _parse_payload,
+    "payload": parse_payload,
     "routing_key": lambda message: message.routing_key,
 }
 
