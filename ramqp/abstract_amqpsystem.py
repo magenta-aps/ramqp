@@ -10,6 +10,7 @@ from functools import partial
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Generator
 from typing import List
 from typing import Optional
 from typing import Set
@@ -44,7 +45,9 @@ logger = structlog.get_logger()
 
 
 @contextmanager
-def _handle_metrics(*labels: List[Any]) -> None:
+def _handle_metrics(
+    routing_key: str, function_name: str
+) -> Generator[None, None, None]:
     """Expose metrics about a callback.
 
     Args:
@@ -53,8 +56,9 @@ def _handle_metrics(*labels: List[Any]) -> None:
     Returns:
         None
     """
-    processing_calls.labels(*labels).inc()
+    labels = (routing_key, function_name)
 
+    processing_calls.labels(*labels).inc()
     with exception_callback_counter.labels(*labels).count_exceptions():
         with processing_inprogress.labels(*labels).track_inprogress():
             with processing_time.labels(*labels).time():
