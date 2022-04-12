@@ -33,7 +33,7 @@ def to_routing_key(
     Returns:
         The equivalent routing key.
     """
-    return ".".join([service_type, object_type, request_type])
+    return f"{service_type}.{object_type}.{request_type}"
 
 
 def from_routing_key(routing_key: str) -> MORoutingTuple:
