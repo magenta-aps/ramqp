@@ -6,11 +6,14 @@ from typing import Dict
 from typing import Set
 
 import pytest
+from more_itertools import all_unique
 from structlog.testing import LogCapture
 
 from .common import callback_func1
+from .common import callback_func2
 from ramqp import AMQPSystem
 from ramqp.utils import CallbackType
+from ramqp.utils import function_to_name
 
 
 def get_registry(amqp_system: AMQPSystem) -> Dict[CallbackType, Set[str]]:
@@ -41,10 +44,7 @@ def test_register(amqp_system: AMQPSystem, log_output: LogCapture) -> None:
 
     # Check that the amqp system did not start, and that our function has been added
     assert amqp_system.started is False
-    registry = get_registry(amqp_system)
-    assert len(registry) == 1
-    routing_keys = registry[callback_func1]
-    assert routing_keys == {"test.routing.key"}
+    assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
 
     # Test that the call was logged
     assert log_output.entries == [
@@ -91,3 +91,31 @@ def test_register_invalid_routing_key(amqp_system: AMQPSystem) -> None:
     # Cannot call register with empty routing key
     with pytest.raises(AssertionError):
         amqp_system.register("")(callback_func1)
+
+
+def test_register_multiple(amqp_system: AMQPSystem) -> None:
+    """Test that functions are added to the registry as expected."""
+    assert get_registry(amqp_system) == {}
+
+    amqp_system.register("test.routing.key")(callback_func1)
+
+    assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
+
+    amqp_system.register("test.routing.key")(callback_func1)
+
+    assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
+
+    amqp_system.register("test.routing.key2")(callback_func1)
+
+    assert get_registry(amqp_system) == {
+        callback_func1: {"test.routing.key", "test.routing.key2"}
+    }
+
+    amqp_system.register("test.routing.key")(callback_func2)
+
+    assert get_registry(amqp_system) == {
+        callback_func1: {"test.routing.key", "test.routing.key2"},
+        callback_func2: {"test.routing.key"},
+    }
+
+    assert all_unique(map(function_to_name, get_registry(amqp_system).keys()))

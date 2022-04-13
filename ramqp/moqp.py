@@ -2,7 +2,10 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """This module contains the MO specific AMQPSystem."""
+from functools import wraps
+from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Tuple
 
 from aio_pika import IncomingMessage
@@ -15,6 +18,7 @@ from .mo_models import ObjectType
 from .mo_models import PayloadType
 from .mo_models import RequestType
 from .mo_models import ServiceType
+from .utils import CallbackType
 
 
 MORoutingTuple = Tuple[ServiceType, ObjectType, RequestType]
@@ -63,6 +67,51 @@ class MOAMQPSystem(AbstractAMQPSystem):
     Both of which utilize the MO AMQP routing-key structure and payload format.
     """
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._adapter_map: Dict[MOCallbackType, CallbackType] = {}
+
+    def _construct_adapter(self, adaptee: MOCallbackType) -> CallbackType:
+        """Construct an adapter from a MOCallbackType to CallbackType.
+
+        Note:
+            Multiple calls with the same adaptee always return the same adapter.
+
+        Args:
+            adaptee: The callback function to be adapted.
+
+        Returns:
+            The adapted callback function calling the input adaptee on invocation.
+        """
+
+        # Early return the previously constructed adapter.
+        # This is required so every function maps to one and only one adapter,
+        # which is in itself required by start to ensure uniqueness of queues.
+        if adaptee in self._adapter_map:
+            return self._adapter_map[adaptee]
+
+        @wraps(adaptee)
+        async def adapter(message: IncomingMessage) -> None:
+            """Adapter function mapping MOCallbackType to CallbackType.
+
+            Unpacks the provided message and converts it into a routing tuple and
+            PayloadType before calling the captured callback.
+
+            Args:
+                message: incoming message to converted and passed to callback.
+
+            Returns:
+                None
+            """
+            assert message.routing_key is not None
+            routing_tuple = from_routing_key(message.routing_key)
+            payload = parse_raw_as(PayloadType, message.body)
+            await adaptee(*routing_tuple, payload)
+
+        # Register our newly created adapter for early return.
+        self._adapter_map[adaptee] = adapter
+        return adapter
+
     def register(
         self,
         service_type: ServiceType,
@@ -103,7 +152,6 @@ class MOAMQPSystem(AbstractAMQPSystem):
                 pass
             ```
 
-
         Args:
             service_type: The service type to bind messages for.
             object_type: The object type to bind messages for.
@@ -116,14 +164,7 @@ class MOAMQPSystem(AbstractAMQPSystem):
         amqp_decorator = self._register(routing_key)
 
         def decorator(function: MOCallbackType) -> MOCallbackType:
-            async def wrapper(message: IncomingMessage) -> None:
-                assert message.routing_key is not None
-                routing_tuple = from_routing_key(message.routing_key)
-                payload = parse_raw_as(PayloadType, message.body)
-                await function(*routing_tuple, payload)
-
-            wrapper.__name__ = function.__name__
-            amqp_decorator(wrapper)
+            amqp_decorator(self._construct_adapter(function))
             return function
 
         return decorator
