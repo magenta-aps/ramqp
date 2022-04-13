@@ -1,3 +1,0 @@
-[flake8]
-exclude = .git, __pycache__, .mypy_cache, .pytest_cache, .venv, .gitlab
-max-line-length = 88
