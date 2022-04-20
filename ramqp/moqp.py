@@ -68,7 +68,7 @@ class MOAMQPSystem(AbstractAMQPSystem):
     Both of which utilize the MO AMQP routing-key structure and payload format.
     """
 
-    def __init__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._adapter_map: Dict[MOCallbackType, CallbackType] = {}
 
