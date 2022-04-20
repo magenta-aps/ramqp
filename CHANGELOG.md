@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+1.1.0 - 2022-04-20
+------------------
+
+[#49610] MOAMQPSystem register non-unique wrappers
+
 1.0.0 - 2022-04-12
 ------------------
 
