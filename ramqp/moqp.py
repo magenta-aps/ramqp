@@ -72,26 +72,26 @@ class MOAMQPSystem(AbstractAMQPSystem):
         super().__init__(*args, **kwargs)
         self._adapter_map: Dict[MOCallbackType, CallbackType] = {}
 
-    def _construct_adapter(self, function: MOCallbackType) -> CallbackType:
+    def _construct_adapter(self, adaptee: MOCallbackType) -> CallbackType:
         """Construct an adapter from a MOCallbackType to CallbackType.
 
         Note:
-            Multiple calls with the same function always return the same adapter.
+            Multiple calls with the same adaptee always return the same adapter.
 
         Args:
-            function: The callback function to be adapted.
+            adaptee: The callback function to be adapted.
 
         Returns:
-            The adapted callback function calling the input function on invocation.
+            The adapted callback function calling the input adaptee on invocation.
         """
 
         # Early return the previously constructed adapter.
         # This is required so every function maps to one and only one adapter,
         # which is in itself required by start to ensure uniqueness of queues.
-        if function in self._adapter_map:
-            return self._adapter_map[function]
+        if adaptee in self._adapter_map:
+            return self._adapter_map[adaptee]
 
-        @wraps(function)
+        @wraps(adaptee)
         async def adapter(message: IncomingMessage) -> None:
             """Adapter function mapping MOCallbackType to CallbackType.
 
@@ -107,10 +107,10 @@ class MOAMQPSystem(AbstractAMQPSystem):
             assert message.routing_key is not None
             routing_tuple = from_routing_key(message.routing_key)
             payload = parse_raw_as(PayloadType, message.body)
-            await function(*routing_tuple, payload)
+            await adaptee(*routing_tuple, payload)
 
         # Register our newly created adapter for early return.
-        self._adapter_map[function] = adapter
+        self._adapter_map[adaptee] = adapter
         return adapter
 
     def register(
