@@ -165,34 +165,36 @@ def test_construct_adapter(moamqp_system: MOAMQPSystem) -> None:
 
 def test_register_multiple(moamqp_system: MOAMQPSystem) -> None:
     """Test that functions are added to the registry as expected."""
-
+    # Prepare two routing-keys
     mo_routing_tuple1 = (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
     routing_key1 = to_routing_key(*mo_routing_tuple1)
 
     mo_routing_tuple2 = (ServiceType.EMPLOYEE, ObjectType.IT, RequestType.EDIT)
     routing_key2 = to_routing_key(*mo_routing_tuple2)
 
+    # Construct adapter functions
     adapter1 = construct_adapter(moamqp_system, callback_func1)
     adapter2 = construct_adapter(moamqp_system, callback_func2)
-
     assert get_registry(moamqp_system) == {}
 
+    # Test that registering our callback, adds the adapter to the registry
     moamqp_system.register(*mo_routing_tuple1)(callback_func1)
-
     assert get_registry(moamqp_system) == {adapter1: {routing_key1}}
 
+    # Test that adding the same entry multiple times only adds once
     moamqp_system.register(*mo_routing_tuple1)(callback_func1)
-
     assert get_registry(moamqp_system) == {adapter1: {routing_key1}}
 
+    # Test that adding the same callback with another key expands the set
     moamqp_system.register(*mo_routing_tuple2)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1, routing_key2}}
 
+    # Test that adding an unrelated callback adds another entry
     moamqp_system.register(*mo_routing_tuple1)(callback_func2)
-
     assert get_registry(moamqp_system) == {
         adapter1: {routing_key1, routing_key2},
         adapter2: {routing_key1},
     }
 
+    # Test that all functions in the registry have unique names
     assert all_unique(map(function_to_name, get_registry(moamqp_system).keys()))
