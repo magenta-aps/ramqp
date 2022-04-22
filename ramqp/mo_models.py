@@ -17,7 +17,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class AutoNameEnum(Enum):
+class AutoLowerNameEnum(Enum):
     """Enum subclass which lets `auto` assign the enum key as value.
 
     From: https://docs.python.org/3/library/enum.html#using-automatic-values
@@ -36,7 +36,7 @@ class AutoNameEnum(Enum):
         ```
         Whereas:
         ```
-        class Color(str, AutoNameEnum):
+        class Color(str, AutoLowerNameEnum):
             RED = auto()
             BLUE = auto()
 
@@ -44,7 +44,7 @@ class AutoNameEnum(Enum):
         ```
         Yields:
         ```
-        [<Color.RED: 'RED'>, <Color.BLUE: 'BLUE'>]
+        [<Color.RED: 'red'>, <Color.BLUE: 'blue'>]
         ```
     """
 
@@ -53,11 +53,11 @@ class AutoNameEnum(Enum):
         name: Any, start: int, count: int, last_values: List[Any]
     ) -> str:
         # The next `auto` value is simply the key name
-        return cast(str, name)
+        return cast(str, name).lower()
 
 
 @unique
-class ServiceType(str, AutoNameEnum):
+class ServiceType(str, AutoLowerNameEnum):
     """The MO service types.
 
     Describes the root object for the object the operation was executed on.
@@ -69,7 +69,7 @@ class ServiceType(str, AutoNameEnum):
 
 
 @unique
-class ObjectType(str, AutoNameEnum):
+class ObjectType(str, AutoLowerNameEnum):
     """The MO object types.
 
     Describes the object the operation was executed on.
@@ -91,7 +91,7 @@ class ObjectType(str, AutoNameEnum):
 
 
 @unique
-class RequestType(str, AutoNameEnum):
+class RequestType(str, AutoLowerNameEnum):
     """The MO request types.
 
     Describes the type of operation which was executed.

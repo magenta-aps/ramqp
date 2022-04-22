@@ -21,13 +21,13 @@ from ramqp.moqp import to_routing_key
 def test_to_routing_key(mo_routing_tuple: MORoutingTuple) -> None:
     """Test that to_routing_key works on expected input."""
     routing_key = to_routing_key(*mo_routing_tuple)
-    assert routing_key == "EMPLOYEE.ADDRESS.CREATE"
+    assert routing_key == "employee.address.create"
 
 
 def test_from_routing_key() -> None:
     """Test that from_routing_key works on expected input."""
     service_type, object_type, request_type = from_routing_key(
-        "EMPLOYEE.ADDRESS.CREATE"
+        "employee.address.create"
     )
     assert service_type == ServiceType.EMPLOYEE
     assert object_type == ObjectType.ADDRESS
@@ -55,11 +55,11 @@ def test_from_routing_key_invalid_values() -> None:
     assert str(exc_info.value) == "'a' is not a valid ServiceType"
 
     with pytest.raises(ValueError) as exc_info:
-        from_routing_key("EMPLOYEE.b.c")
+        from_routing_key("employee.b.c")
     assert str(exc_info.value) == "'b' is not a valid ObjectType"
 
     with pytest.raises(ValueError) as exc_info:
-        from_routing_key("EMPLOYEE.ADDRESS.c")
+        from_routing_key("employee.address.c")
     assert str(exc_info.value) == "'c' is not a valid RequestType"
 
 
