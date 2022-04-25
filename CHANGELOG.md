@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+1.1.1 - 2022-04-25
+------------------
+
+[#49706] Fix MO AMQP routing key to correspond with MOs
+
 1.1.0 - 2022-04-20
 ------------------
 
