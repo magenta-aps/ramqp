@@ -13,6 +13,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import parse_raw_as
 
 from .abstract_amqpsystem import AbstractAMQPSystem
+from .metrics import exception_mo_routing_counter
 from .mo_models import MOCallbackType
 from .mo_models import ObjectType
 from .mo_models import PayloadType
@@ -37,7 +38,7 @@ def to_routing_key(
     Returns:
         The equivalent routing key.
     """
-    return f"{service_type}.{object_type}.{request_type}"
+    return f"{service_type.value}.{object_type.value}.{request_type.value}"
 
 
 def from_routing_key(routing_key: str) -> MORoutingTuple:
@@ -53,11 +54,16 @@ def from_routing_key(routing_key: str) -> MORoutingTuple:
     Returns:
         The equivalent service.object.request tuple.
     """
-    parts = routing_key.split(".")
-    if len(parts) != 3:
-        raise ValueError("Expected a three tuple!")
-    service_str, object_str, request_str = parts
-    return ServiceType(service_str), ObjectType(object_str), RequestType(request_str)
+    with exception_mo_routing_counter.labels(routing_key).count_exceptions():
+        parts = routing_key.split(".")
+        if len(parts) != 3:
+            raise ValueError("Expected a three tuple!")
+        service_str, object_str, request_str = parts
+        return (
+            ServiceType(service_str),
+            ObjectType(object_str),
+            RequestType(request_str),
+        )
 
 
 class MOAMQPSystem(AbstractAMQPSystem):
