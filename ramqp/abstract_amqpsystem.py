@@ -109,6 +109,7 @@ class AbstractAMQPSystem:
         self._connection: Optional[AbstractRobustConnection] = None
         self._channel: Optional[AbstractChannel] = None
         self._exchange: Optional[AbstractExchange] = None
+        self._queues: Dict[str, AbstractQueue] = []
 
         self._periodic_task: Optional[asyncio.Task] = None
 
@@ -120,6 +121,20 @@ class AbstractAMQPSystem:
             Whether a connection has been made.
         """
         return self._connection is not None
+
+    def healthcheck(self) -> bool:
+        """Whether the system is running, alive and well
+
+        Returns:
+            Whether the system is running, alive and well
+        """
+        return all([
+            self._connection is not None,
+            self._connection.is_closed == False,
+            self._channel is not None,
+            self._channel.is_closed == False,
+            self._channel.is_initialized,
+        ])
 
     def _setup_periodic_metrics(self, queues: Dict[str, AbstractQueue]) -> None:
         """Setup a periodic job to update non-eventful metrics.
@@ -198,7 +213,7 @@ class AbstractAMQPSystem:
         )
 
         # TODO: Create queues and binds in parallel?
-        queues = {}
+        self._queues = {}
         for callback, routing_keys in self._registry.items():
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
@@ -207,7 +222,7 @@ class AbstractAMQPSystem:
             log.info("Declaring unique message queue", queue_name=queue_name)
             # Make our queues durable so they survive broker restarts
             queue = await self._channel.declare_queue(queue_name, durable=True)
-            queues[function_name] = queue
+            self._queues[function_name] = queue
 
             log.info("Starting message listener")
             await queue.consume(partial(_on_message, callback))  # type: ignore
@@ -218,7 +233,7 @@ class AbstractAMQPSystem:
                 await queue.bind(self._exchange, routing_key=routing_key)
                 routes_bound.labels(function_name).inc()
 
-        self._setup_periodic_metrics(queues)
+        self._setup_periodic_metrics(self._queues)
 
     async def stop(self) -> None:
         """Stop the AMQPSystem.
