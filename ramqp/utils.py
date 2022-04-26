@@ -11,6 +11,7 @@ from typing import cast
 import structlog
 from aio_pika import IncomingMessage
 
+from .metrics import exception_decode_counter
 from .metrics import exception_parse_counter
 
 
@@ -35,7 +36,7 @@ def decode_body(message: IncomingMessage) -> str:
         The decoded body as a string.
     """
     routing_key = message.routing_key
-    with exception_parse_counter.labels(routing_key).count_exceptions():
+    with exception_decode_counter.labels(routing_key).count_exceptions():
         decoded = message.body.decode("utf-8")
     logger.debug("Decoded body", routing_key=routing_key, decoded=decoded)
     return decoded
