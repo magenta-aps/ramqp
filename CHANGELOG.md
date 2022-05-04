@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+1.3.0 - 2022-05-04
+------------------
+
+[#49896] Restructure metrics and add publish metrics
+
 1.2.0 - 2022-05-04
 ------------------
 
