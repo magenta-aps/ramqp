@@ -5,12 +5,10 @@
 import asyncio
 import json
 from abc import ABCMeta
-from contextlib import contextmanager
 from functools import partial
 from typing import Any
 from typing import Callable
 from typing import Dict
-from typing import Generator
 from typing import List
 from typing import Optional
 from typing import Set
@@ -22,20 +20,15 @@ from aio_pika import IncomingMessage
 from aio_pika import Message
 from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
-from aio_pika.abc import AbstractQueue
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
 from .config import ConnectionSettings
-from .metrics import backlog_count
+from .metrics import _handle_publish_metrics
+from .metrics import _handle_receive_metrics
+from .metrics import _setup_periodic_metrics
 from .metrics import callbacks_registered
-from .metrics import exception_callback_counter
-from .metrics import last_loop_periodic
-from .metrics import last_on_message
-from .metrics import last_periodic
-from .metrics import processing_calls
-from .metrics import processing_inprogress
-from .metrics import processing_time
+from .metrics import reconnect_counter
 from .metrics import routes_bound
 from .utils import CallbackType
 from .utils import function_to_name
@@ -44,25 +37,16 @@ from .utils import function_to_name
 logger = structlog.get_logger()
 
 
-@contextmanager
-def _handle_metrics(
-    routing_key: str, function_name: str
-) -> Generator[None, None, None]:
-    """Expose metrics about a callback.
+def reconnect_callback(_: AbstractRobustConnection) -> None:
+    """Reconnect callback to update reconnect counter metric.
 
     Args:
-        labels: Labels to apply to the metrics.
+        Unused connection
 
     Returns:
         None
     """
-    labels = (routing_key, function_name)
-
-    processing_calls.labels(*labels).inc()
-    with exception_callback_counter.labels(*labels).count_exceptions():
-        with processing_inprogress.labels(*labels).track_inprogress():
-            with processing_time.labels(*labels).time():
-                yield
+    reconnect_counter.inc()
 
 
 async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
@@ -77,8 +61,6 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
     Returns:
         None
     """
-    last_on_message.set_to_current_time()
-
     assert message.routing_key is not None
     routing_key = message.routing_key
     function_name = function_to_name(callback)
@@ -86,7 +68,7 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
 
     log.debug("Received message")
     try:
-        with _handle_metrics(routing_key, function_name):
+        with _handle_receive_metrics(routing_key, function_name):
             # Requeue messages on exceptions, so they can be retried.
             async with message.process(requeue=True):
                 await callback(message)
@@ -136,29 +118,6 @@ class AbstractAMQPSystem:
             self._channel.is_initialized,
         ])
 
-    def _setup_periodic_metrics(self, queues: Dict[str, AbstractQueue]) -> None:
-        """Setup a periodic job to update non-eventful metrics.
-
-        Args:
-            queues: The aio_pika queues to export periodic metrics for.
-
-        Returns:
-            None
-        """
-        # Setup periodic metrics
-        async def periodic_metrics() -> None:
-            loop = asyncio.get_running_loop()
-            while True:
-                last_periodic.set_to_current_time()
-                last_loop_periodic.set(loop.time())
-                for function_name, queue in queues.items():
-                    backlog_count.labels(function_name).set(
-                        queue.declaration_result.message_count
-                    )
-                await asyncio.sleep(1)
-
-        self._periodic_task = asyncio.create_task(periodic_metrics())
-
     async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
         """Start the AMQPSystem.
 
@@ -199,6 +158,7 @@ class AbstractAMQPSystem:
             path=settings.amqp_url.path,
         )
         self._connection = await connect_robust(settings.amqp_url)
+        self._connection.reconnect_callbacks.add(reconnect_callback)
 
         logger.info("Creating AMQP channel")
         self._channel = await self._connection.channel()
@@ -233,7 +193,7 @@ class AbstractAMQPSystem:
                 await queue.bind(self._exchange, routing_key=routing_key)
                 routes_bound.labels(function_name).inc()
 
-        self._setup_periodic_metrics(self._queues)
+        self._periodic_task = _setup_periodic_metrics(self.queues)
 
     async def stop(self) -> None:
         """Stop the AMQPSystem.
@@ -348,5 +308,6 @@ class AbstractAMQPSystem:
         if self._exchange is None:
             raise ValueError("Must call start() before publish message!")
 
-        message = Message(body=json.dumps(payload).encode("utf-8"))
-        await self._exchange.publish(routing_key=routing_key, message=message)
+        with _handle_publish_metrics(routing_key):
+            message = Message(body=json.dumps(payload).encode("utf-8"))
+            await self._exchange.publish(routing_key=routing_key, message=message)
