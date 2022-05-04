@@ -30,13 +30,13 @@ from structlog.testing import LogCapture
 from .common import random_string
 from ramqp import AMQPSystem
 from ramqp.abstract_amqpsystem import AbstractAMQPSystem
+from ramqp.mo_models import MOCallbackType
+from ramqp.mo_models import MORoutingKey
+from ramqp.mo_models import ObjectType
+from ramqp.mo_models import PayloadType
+from ramqp.mo_models import RequestType
+from ramqp.mo_models import ServiceType
 from ramqp.moqp import MOAMQPSystem
-from ramqp.moqp import MOCallbackType
-from ramqp.moqp import MORoutingTuple
-from ramqp.moqp import ObjectType
-from ramqp.moqp import PayloadType
-from ramqp.moqp import RequestType
-from ramqp.moqp import ServiceType
 
 
 @pytest.fixture
@@ -130,16 +130,20 @@ def mo_payload() -> PayloadType:
 
 
 @pytest.fixture
-def mo_routing_tuple() -> MORoutingTuple:
+def mo_routing_key() -> MORoutingKey:
     """Pytest fixture to construct a MO routing tuple."""
-    return (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
+    return MORoutingKey(
+        service_type=ServiceType.EMPLOYEE,
+        object_type=ObjectType.ADDRESS,
+        request_type=RequestType.CREATE,
+    )
 
 
 @pytest.fixture
 def moamqp_test(
     moamqp_system: MOAMQPSystem,
     mo_payload: PayloadType,
-    mo_routing_tuple: MORoutingTuple,
+    mo_routing_key: MORoutingKey,
 ) -> Callable:
     """Return an integration-test callable."""
 
@@ -154,12 +158,12 @@ def moamqp_test(
             event.set()
 
         amqp_system = moamqp_system
-        amqp_system.register(*mo_routing_tuple)(callback_wrapper)
+        amqp_system.register(mo_routing_key)(callback_wrapper)
         await amqp_system.start(
             queue_prefix=queue_prefix,  # type: ignore
             amqp_exchange=test_id,  # type: ignore
         )
-        await amqp_system.publish_message(*mo_routing_tuple, mo_payload)
+        await amqp_system.publish_message(mo_routing_key, mo_payload)
         await event.wait()
         await amqp_system.stop()
 
