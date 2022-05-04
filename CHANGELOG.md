@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+1.2.0 - 2022-05-04
+------------------
+
+[#49896] Added healthcheck endpoint
+
 1.1.1 - 2022-04-25
 ------------------
 
