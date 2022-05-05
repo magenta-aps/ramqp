@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+1.3.1 - 2022-05-05
+------------------
+
+[#49896] Hotfix bug introduced by restructure metrics and add publish metrics
+
 1.3.0 - 2022-05-04
 ------------------
 
