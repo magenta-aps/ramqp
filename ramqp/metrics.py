@@ -4,6 +4,7 @@
 """This module contains the all prometheus metrics."""
 import asyncio
 from contextlib import contextmanager
+from contextlib import ExitStack
 from typing import Dict
 from typing import Generator
 
@@ -88,10 +89,11 @@ def _handle_receive_metrics(
 
     receive_last_received.labels(*labels).set_to_current_time()
     receive_calls.labels(*labels).inc()
-    with receive_exceptions.labels(*labels).count_exceptions():
-        with receive_inprogress.labels(*labels).track_inprogress():
-            with receive_time.labels(*labels).time():
-                yield
+    with ExitStack() as stack:
+        stack.enter_context(receive_exceptions.labels(*labels).count_exceptions())
+        stack.enter_context(receive_inprogress.labels(*labels).track_inprogress())
+        stack.enter_context(receive_time.labels(*labels).time())
+        yield
 
 
 # --------------- #
@@ -139,10 +141,11 @@ def _handle_publish_metrics(routing_key: str) -> Generator[None, None, None]:
 
     publish_last_published.labels(*labels).set_to_current_time()
     publish_calls.labels(*labels).inc()
-    with publish_exceptions.labels(*labels).count_exceptions():
-        with publish_inprogress.labels(*labels).track_inprogress():
-            with publish_time.labels(*labels).time():
-                yield
+    with ExitStack() as stack:
+        stack.enter_context(publish_exceptions.labels(*labels).count_exceptions())
+        stack.enter_context(publish_inprogress.labels(*labels).track_inprogress())
+        stack.enter_context(publish_time.labels(*labels).time())
+        yield
 
 
 # ---------------- #
