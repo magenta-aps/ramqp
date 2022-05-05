@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module tests the AMQPSystem.start, stop and run-forever methods."""
 import pytest
+from ra_utils.attrdict import attrdict
 
 from .common import _test_run_forever_worker
 from ramqp import AMQPSystem
@@ -19,10 +20,18 @@ async def test_cannot_publish_before_start(amqp_system: AMQPSystem) -> None:
         await amqp_system.publish_message("test.routing.key", {"key": "value"})
 
 
-def test_has_started(amqp_system: AMQPSystem) -> None:
-    """Test the started property."""
+def test_has_started_and_health(amqp_system: AMQPSystem) -> None:
+    """Test the started property and healthcheck method."""
     # Fake that the system has started
     assert amqp_system.started is False
+    assert amqp_system.healthcheck() is False
     # pylint: disable=protected-access
-    amqp_system._connection = {}  # type: ignore
+    amqp_system._connection = attrdict({"is_closed": False})  # type: ignore
     assert amqp_system.started is True
+    assert amqp_system.healthcheck() is False
+
+    amqp_system._channel = attrdict(
+        {"is_closed": False, "is_initialized": True}
+    )  # type: ignore
+    assert amqp_system.started is True
+    assert amqp_system.healthcheck() is True

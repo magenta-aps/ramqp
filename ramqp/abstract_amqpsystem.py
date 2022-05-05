@@ -20,6 +20,7 @@ from aio_pika import IncomingMessage
 from aio_pika import Message
 from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
+from aio_pika.abc import AbstractQueue
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
@@ -46,7 +47,7 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     Returns:
         None
     """
-    reconnect_counter.inc()
+    reconnect_counter.inc()  # pragma: no cover
 
 
 async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
@@ -91,7 +92,7 @@ class AbstractAMQPSystem:
         self._connection: Optional[AbstractRobustConnection] = None
         self._channel: Optional[AbstractChannel] = None
         self._exchange: Optional[AbstractExchange] = None
-        self._queues: Dict[str, AbstractQueue] = []
+        self._queues: Dict[str, AbstractQueue] = {}
 
         self._periodic_task: Optional[asyncio.Task] = None
 
@@ -110,13 +111,13 @@ class AbstractAMQPSystem:
         Returns:
             Whether the system is running, alive and well
         """
-        return all([
-            self._connection is not None,
-            self._connection.is_closed == False,
-            self._channel is not None,
-            self._channel.is_closed == False,
-            self._channel.is_initialized,
-        ])
+        return (
+            self._connection is not None
+            and self._connection.is_closed is False
+            and self._channel is not None
+            and self._channel.is_closed is False
+            and self._channel.is_initialized
+        )
 
     async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
         """Start the AMQPSystem.
@@ -193,7 +194,7 @@ class AbstractAMQPSystem:
                 await queue.bind(self._exchange, routing_key=routing_key)
                 routes_bound.labels(function_name).inc()
 
-        self._periodic_task = _setup_periodic_metrics(self.queues)
+        self._periodic_task = _setup_periodic_metrics(self._queues)
 
     async def stop(self) -> None:
         """Stop the AMQPSystem.
