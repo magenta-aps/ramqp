@@ -8,6 +8,7 @@ from abc import ABCMeta
 from functools import partial
 from typing import Any
 from typing import Callable
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -18,9 +19,9 @@ from aio_pika import connect_robust
 from aio_pika import ExchangeType
 from aio_pika import IncomingMessage
 from aio_pika import Message
-from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
 from aio_pika.abc import AbstractQueue
+from aio_pika.abc import AbstractRobustChannel
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
@@ -29,7 +30,8 @@ from .metrics import _handle_publish_metrics
 from .metrics import _handle_receive_metrics
 from .metrics import _setup_periodic_metrics
 from .metrics import callbacks_registered
-from .metrics import reconnect_counter
+from .metrics import event_counter
+from .metrics import event_last
 from .metrics import routes_bound
 from .utils import CallbackType
 from .utils import function_to_name
@@ -38,16 +40,29 @@ from .utils import function_to_name
 logger = structlog.get_logger()
 
 
-def reconnect_callback(_: AbstractRobustConnection) -> None:
-    """Reconnect callback to update reconnect counter metric.
+def event_callback_generator(event_key: str) -> Callable:
+    """Generate event-keyed event callback function.
 
     Args:
-        Unused connection
+        event_key: The key to label all metrics with.
 
     Returns:
-        None
+        Callback function to update event metrics.
     """
-    reconnect_counter.inc()  # pragma: no cover
+
+    def event_callback(*_1: Any, **_2: Any) -> None:  # pragma: no cover
+        """Reconnect callback to update reconnect metrics.
+
+        Args:
+            Unused arguments
+
+        Returns:
+            None
+        """
+        event_counter.labels(event_key).inc()
+        event_last.labels(event_key).set_to_current_time()
+
+    return event_callback
 
 
 async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
@@ -90,7 +105,7 @@ class AbstractAMQPSystem:
         self._registry: Dict[CallbackType, Set[str]] = {}
 
         self._connection: Optional[AbstractRobustConnection] = None
-        self._channel: Optional[AbstractChannel] = None
+        self._channel: Optional[AbstractRobustChannel] = None
         self._exchange: Optional[AbstractExchange] = None
         self._queues: Dict[str, AbstractQueue] = {}
 
@@ -159,11 +174,21 @@ class AbstractAMQPSystem:
             path=settings.amqp_url.path,
         )
         self._connection = await connect_robust(settings.amqp_url)
-        self._connection.reconnect_callbacks.add(reconnect_callback)
+        self._connection.reconnect_callbacks.add(
+            event_callback_generator("RobustConnection.reconnect")
+        )
+        self._connection.close_callbacks.add(
+            event_callback_generator("Connection.close")
+        )
 
         logger.info("Creating AMQP channel")
-        self._channel = await self._connection.channel()
+        self._channel = cast(AbstractRobustChannel, await self._connection.channel())
         await self._channel.set_qos(prefetch_count=10)
+        self._channel.reopen_callbacks.add(
+            event_callback_generator("RobustChannel.reopen")
+        )
+        self._channel.close_callbacks.add(event_callback_generator("Channel.close"))
+        self._channel.return_callbacks.add(event_callback_generator("Channel.return"))
 
         logger.info(
             "Attaching AMQP exchange to channel", exchange=settings.amqp_exchange

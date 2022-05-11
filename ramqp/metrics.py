@@ -38,7 +38,8 @@ routes_bound = Counter(
 callbacks_registered = Counter(
     "amqp_callbacks_registered", "Number of callbacks registered", ["routing_key"]
 )
-reconnect_counter = Counter("amqp_reconnect", "Number of reconnections made")
+event_counter = Counter("amqp_event", "Number of events made", ["event_key"])
+event_last = Gauge("amqp_event_last", "Timestamp of last event", ["event_key"])
 
 
 # --------------- #
