@@ -6,6 +6,24 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.0.0 - 2022-05-18
+------------------
+
+[#49896] Modified the MO callback function parameters and loosed the MOAMQP interface a bit.
+
+
+Before the MO Callback function had this signature:
+```
+Callable[[ServiceType, ObjectType, RequestType, PayloadType], Awaitable]
+```
+While now it has this signature:
+```
+Callback[[MORoutingKey, PayloadType], Awaitable]
+```
+
+Before MOAMQP's `register` and `publish_message` had very a strict interface,
+while now the interface is looser using overloaded methods.
+
 1.3.1 - 2022-05-05
 ------------------
 
