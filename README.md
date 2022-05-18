@@ -52,10 +52,11 @@ await amqp_system.stop()
 Receiving:
 ```python
 from ramqp.moqp import MOAMQPSystem
-from ramqp.moqp import ServiceType
-from ramqp.moqp import ObjectType
-from ramqp.moqp import RequestType
-from ramqp.moqp import PayloadType
+from ramqp.mo_models import MORoutingKey
+from ramqp.mo_models import ServiceType
+from ramqp.mo_models import ObjectType
+from ramqp.mo_models import RequestType
+from ramqp.mo_models import PayloadType
 
 amqp_system = MOAMQPSystem()
 
@@ -63,12 +64,9 @@ amqp_system = MOAMQPSystem()
 # If an exception is thrown from the function, the message is not acknowledged.
 # Thus it will be retried immediately.
 @amqp_system.register(ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT)
-@amqp_system.register(ServiceType.ORG_UNIT, ObjectType.IT, RequestType.CREATE)
+@amqp_system.register('employee.it.create')
 async def callback_function(
-    service_type: ServiceType,
-    object_type: ObjectType,
-    request_type: RequestType,
-    payload: PayloadType
+    mo_routing_key: MORoutingKey, payload: PayloadType
 ) -> None:
     # The arguments to this function is fixed, `@pass_arguments` cannot be used.
     pass
@@ -82,10 +80,10 @@ from uuid import uuid4
 from datetime import datetime
 
 from ramqp.moqp import MOAMQPSystem
-from ramqp.moqp import ServiceType
-from ramqp.moqp import ObjectType
-from ramqp.moqp import RequestType
-from ramqp.moqp import PayloadType
+from ramqp.mo_models import ServiceType
+from ramqp.mo_models import ObjectType
+from ramqp.mo_models import RequestType
+from ramqp.mo_models import PayloadType
 
 payload = PayloadType(uuid=uuid4(), object_uuid=uuid4(), time=datetime.now())
 

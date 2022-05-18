@@ -11,14 +11,13 @@ import pytest
 from more_itertools import all_unique
 
 from .common import _test_run_forever_worker
+from ramqp.mo_models import MOCallbackType
+from ramqp.mo_models import MORoutingKey
+from ramqp.mo_models import ObjectType
+from ramqp.mo_models import PayloadType
+from ramqp.mo_models import RequestType
+from ramqp.mo_models import ServiceType
 from ramqp.moqp import MOAMQPSystem
-from ramqp.moqp import MOCallbackType
-from ramqp.moqp import MORoutingTuple
-from ramqp.moqp import ObjectType
-from ramqp.moqp import PayloadType
-from ramqp.moqp import RequestType
-from ramqp.moqp import ServiceType
-from ramqp.moqp import to_routing_key
 from ramqp.utils import CallbackType
 from ramqp.utils import function_to_name
 
@@ -53,19 +52,15 @@ def construct_adapter(
 
 
 async def callback_func1(
-    _1: ServiceType,
-    _2: ObjectType,
-    _3: RequestType,
-    _4: PayloadType,
+    _1: MORoutingKey,
+    _2: PayloadType,
 ) -> None:
     """Dummy callback method."""
 
 
 async def callback_func2(
-    _1: ServiceType,
-    _2: ObjectType,
-    _3: RequestType,
-    _4: PayloadType,
+    _1: MORoutingKey,
+    _2: PayloadType,
 ) -> None:
     """Dummy callback method."""
 
@@ -76,31 +71,25 @@ async def test_happy_path(moamqp_test: Callable) -> None:
     params: Dict[str, Any] = {}
 
     async def callback(
-        service_type: ServiceType,
-        object_type: ObjectType,
-        request_type: RequestType,
+        mo_routing_key: MORoutingKey,
         payload: PayloadType,
     ) -> None:
-        params["service_type"] = service_type
-        params["object_type"] = object_type
-        params["request_type"] = request_type
+        params["mo_routing_key"] = mo_routing_key
         params["payload"] = payload
 
     await moamqp_test(callback)
 
     assert list(params.keys()) == [
-        "service_type",
-        "object_type",
-        "request_type",
+        "mo_routing_key",
         "payload",
     ]
-    assert isinstance(params["service_type"], ServiceType)
-    assert params["service_type"] == ServiceType.EMPLOYEE
-    assert isinstance(params["object_type"], ObjectType)
-    assert params["object_type"] == ObjectType.ADDRESS
-    assert isinstance(params["request_type"], RequestType)
-    assert params["request_type"] == RequestType.CREATE
+    assert isinstance(params["mo_routing_key"], MORoutingKey)
     assert isinstance(params["payload"], PayloadType)
+
+    routing_key = params["mo_routing_key"]
+    assert routing_key.service_type == ServiceType.EMPLOYEE
+    assert routing_key.object_type == ObjectType.ADDRESS
+    assert routing_key.request_type == RequestType.CREATE
 
 
 def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
@@ -111,11 +100,11 @@ def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
 async def test_cannot_publish_before_start(
     moamqp_system: MOAMQPSystem,
     mo_payload: PayloadType,
-    mo_routing_tuple: MORoutingTuple,
+    mo_routing_key: MORoutingKey,
 ) -> None:
     """Test that messages cannot be published before system start."""
     with pytest.raises(ValueError):
-        await moamqp_system.publish_message(*mo_routing_tuple, mo_payload)
+        await moamqp_system.publish_message(mo_routing_key, mo_payload)
 
 
 def test_has_started(moamqp_system: MOAMQPSystem) -> None:
@@ -167,10 +156,10 @@ def test_register_multiple(moamqp_system: MOAMQPSystem) -> None:
     """Test that functions are added to the registry as expected."""
     # Prepare two routing-keys
     mo_routing_tuple1 = (ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.CREATE)
-    routing_key1 = to_routing_key(*mo_routing_tuple1)
+    routing_key1 = str(MORoutingKey.build(mo_routing_tuple1))
 
     mo_routing_tuple2 = (ServiceType.EMPLOYEE, ObjectType.IT, RequestType.EDIT)
-    routing_key2 = to_routing_key(*mo_routing_tuple2)
+    routing_key2 = str(MORoutingKey.build(*mo_routing_tuple2))
 
     # Construct adapter functions
     adapter1 = construct_adapter(moamqp_system, callback_func1)
