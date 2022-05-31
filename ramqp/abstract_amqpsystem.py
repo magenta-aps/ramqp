@@ -9,7 +9,6 @@ from functools import partial
 from typing import Any
 from typing import Callable
 from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Set
 
@@ -33,7 +32,6 @@ from .metrics import reconnect_counter
 from .metrics import routes_bound
 from .utils import CallbackType
 from .utils import function_to_name
-
 
 logger = structlog.get_logger()
 
@@ -119,7 +117,7 @@ class AbstractAMQPSystem:
             and self._channel.is_initialized
         )
 
-    async def start(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+    async def start(self, *args: Any, **kwargs: Any) -> None:
         """Start the AMQPSystem.
 
         This method:
@@ -218,7 +216,7 @@ class AbstractAMQPSystem:
             await self._connection.close()
             self._connection = None
 
-    def run_forever(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+    def run_forever(self, *args: Any, **kwargs: str) -> None:
         """Start the AMQPSystem and run it forever.
 
         Args:
