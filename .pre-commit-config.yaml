@@ -36,6 +36,10 @@ repos:
           # Ignore 'fixme'
           # We allow TODOs in the source code
           - '--disable=W0511'
+          # Allow .format() instead of enforcing f-strings
+          - '--disable=C0209'
+          # Ignore too long lines; black decides that
+          - '--disable=C0301'
           # With 5 or more lines of duplicate code, we should refactor it
           - '--min-similarity-lines=5'
 

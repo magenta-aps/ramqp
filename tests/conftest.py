@@ -104,8 +104,8 @@ def amqp_test(amqp_system: AMQPSystem) -> Callable:
 
         amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
         await amqp_system.start(
-            queue_prefix=queue_prefix,  # type: ignore
-            amqp_exchange=test_id,  # type: ignore
+            amqp_queue_prefix=queue_prefix,
+            amqp_exchange=test_id,
         )
         await amqp_system.publish_message(routing_key, payload)
         await event.wait()
@@ -158,8 +158,8 @@ def moamqp_test(
         amqp_system = moamqp_system
         amqp_system.register(mo_routing_key)(callback_wrapper)
         await amqp_system.start(
-            queue_prefix=queue_prefix,  # type: ignore
-            amqp_exchange=test_id,  # type: ignore
+            amqp_queue_prefix=queue_prefix,
+            amqp_exchange=test_id,
         )
         await amqp_system.publish_message(mo_routing_key, mo_payload)
         await event.wait()
