@@ -6,6 +6,16 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.0.0 - 2022-06-01
+------------------
+
+[#49706] Add individual amqp_scheme, amqp_host, amqp_user, amqp_password, amqp_port, amqp_vhost fields.
+
+Before, the AMQP server could only be configured using the `amqp_url` setting.
+Now, AMQP connection settings can alternatively be set individually using 
+`amqp_x` variables. Additionally, `queue_prefix` was renamed to
+`amqp_queue_prefix` for consistency.
+
 2.0.1 - 2022-06-01
 ------------------
 
