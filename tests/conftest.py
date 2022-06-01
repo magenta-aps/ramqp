@@ -9,9 +9,7 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 from typing import cast
-from typing import Dict
 from typing import Iterator
-from typing import List
 from typing import Optional
 from typing import Type
 from uuid import uuid4
@@ -100,7 +98,7 @@ def amqp_test(amqp_system: AMQPSystem) -> Callable:
         payload = {"value": test_id}
         event = asyncio.Event()
 
-        async def callback_wrapper(*args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        async def callback_wrapper(*args: Any, **kwargs: Any) -> None:
             await callback(*args, **kwargs)
             event.set()
 
@@ -153,7 +151,7 @@ def moamqp_test(
         queue_prefix = f"test_{test_id}"
         event = asyncio.Event()
 
-        async def callback_wrapper(*args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        async def callback_wrapper(*args: Any, **kwargs: Any) -> None:
             await callback(*args, **kwargs)  # type: ignore
             event.set()
 

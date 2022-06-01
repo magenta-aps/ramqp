@@ -7,7 +7,6 @@ import random
 import string
 from typing import Any
 from typing import Dict
-from typing import List
 
 from aio_pika import IncomingMessage
 
@@ -40,14 +39,14 @@ def random_string(length: int = 30) -> str:
 def _test_run_forever_worker(amqp_system: AbstractAMQPSystem) -> None:
     params: Dict[str, Any] = {}
 
-    async def start(*_: List[Any], **__: Dict[str, Any]) -> None:
+    async def start(*_: Any, **__: Any) -> None:
         # Instead of starting, shutdown the event-loop
         loop = asyncio.get_running_loop()
         loop.stop()
 
         params["start"] = True
 
-    async def stop(*_: List[Any], **__: Dict[str, Any]) -> None:
+    async def stop(*_: Any, **__: Any) -> None:
         params["stop"] = True
 
     # mypy says: Cannot assign to a method, we ignore it
