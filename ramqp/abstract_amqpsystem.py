@@ -144,9 +144,9 @@ class AbstractAMQPSystem:
         # We expect function_to_name to be unique for each callback
         assert all_unique(map(function_to_name, self._registry.keys()))
 
-        # We except queue_prefix to be set if any callbacks are registered
+        # We except amqp_queue_prefix to be set if any callbacks are registered
         if self._registry:
-            assert settings.queue_prefix is not None
+            assert settings.amqp_queue_prefix is not None
 
         logger.info(
             "Establishing AMQP connection",
@@ -177,7 +177,7 @@ class AbstractAMQPSystem:
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
 
-            queue_name = f"{settings.queue_prefix}_{function_name}"
+            queue_name = f"{settings.amqp_queue_prefix}_{function_name}"
             log.info("Declaring unique message queue", queue_name=queue_name)
             # Make our queues durable so they survive broker restarts
             queue = await self._channel.declare_queue(queue_name, durable=True)
