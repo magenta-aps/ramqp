@@ -5,6 +5,7 @@
 import pytest
 from ra_utils.attrdict import attrdict
 
+from .common import _test_context_manager
 from .common import _test_run_forever_worker
 from ramqp import AMQPSystem
 
@@ -12,6 +13,11 @@ from ramqp import AMQPSystem
 def test_run_forever(amqp_system: AMQPSystem) -> None:
     """Test that run_forever calls start, then stop."""
     _test_run_forever_worker(amqp_system)
+
+
+async def test_context_manager(amqp_system: AMQPSystem) -> None:
+    """Test that the system is started, then stopped, as a context manager."""
+    await _test_context_manager(amqp_system)
 
 
 async def test_cannot_publish_before_start(amqp_system: AMQPSystem) -> None:

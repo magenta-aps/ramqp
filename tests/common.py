@@ -7,6 +7,7 @@ import random
 import string
 from typing import Any
 from typing import Dict
+from unittest.mock import AsyncMock
 
 from aio_pika import IncomingMessage
 
@@ -55,3 +56,16 @@ def _test_run_forever_worker(amqp_system: AbstractAMQPSystem) -> None:
     amqp_system.run_forever()
 
     assert list(params.keys()) == ["start", "stop"]
+
+
+async def _test_context_manager(amqp_system: AbstractAMQPSystem) -> None:
+    start = AsyncMock()
+    stop = AsyncMock()
+
+    # mypy says: Cannot assign to a method, we ignore it
+    amqp_system.start = start  # type: ignore
+    amqp_system.stop = stop  # type: ignore
+
+    async with amqp_system:
+        start.assert_awaited_once()
+    stop.assert_awaited_once()
