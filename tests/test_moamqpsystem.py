@@ -10,6 +10,7 @@ from typing import Set
 import pytest
 from more_itertools import all_unique
 
+from .common import _test_context_manager
 from .common import _test_run_forever_worker
 from ramqp.mo_models import MOCallbackType
 from ramqp.mo_models import MORoutingKey
@@ -95,6 +96,11 @@ async def test_happy_path(moamqp_test: Callable) -> None:
 def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
     """Test that run_forever calls start, then stop."""
     _test_run_forever_worker(moamqp_system)
+
+
+async def test_context_manager(moamqp_system: MOAMQPSystem) -> None:
+    """Test that the system is started, then stopped, as a context manager."""
+    await _test_context_manager(moamqp_system)
 
 
 async def test_cannot_publish_before_start(

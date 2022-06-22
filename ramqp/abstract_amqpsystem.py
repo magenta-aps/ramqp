@@ -5,12 +5,15 @@
 import asyncio
 import json
 from abc import ABCMeta
+from contextlib import AbstractAsyncContextManager
 from functools import partial
+from types import TracebackType
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import Set
+from typing import Type
 
 import structlog
 from aio_pika import connect_robust
@@ -76,7 +79,7 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
         raise exception
 
 
-class AbstractAMQPSystem:
+class AbstractAMQPSystem(AbstractAsyncContextManager):
     """Abstract base-class for AMQPSystems.
 
     Shared code used by both AMQPSystem and MOAMQPSystem.
@@ -215,6 +218,32 @@ class AbstractAMQPSystem:
         if self._connection is not None:
             await self._connection.close()
             self._connection = None
+
+    async def __aenter__(self) -> "AbstractAMQPSystem":
+        """Start the AMQPSystem.
+
+        Returns: Self.
+        """
+        await self.start()
+        return await super().__aenter__()  # type: ignore[no-any-return]
+
+    async def __aexit__(
+        self,
+        __exc_type: Optional[Type[BaseException]],
+        __exc_value: Optional[BaseException],
+        __traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        """Stop the AMQPSystem.
+
+        Args:
+            __exc_type: AbstractAsyncContextManager argument.
+            __exc_value: AbstractAsyncContextManager argument.
+            __traceback: AbstractAsyncContextManager argument.
+
+        Returns: None.
+        """
+        await self.stop()
+        return await super().__aexit__(__exc_type, __exc_value, __traceback)
 
     def run_forever(self, *args: Any, **kwargs: str) -> None:
         """Start the AMQPSystem and run it forever.
