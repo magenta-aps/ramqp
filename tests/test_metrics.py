@@ -8,10 +8,18 @@ from typing import cast
 from typing import Set
 from typing import Tuple
 
+import pytest
+
 from .common import callback_func1
 from .common import callback_func2
 from ramqp import AMQPSystem
 from ramqp.metrics import callbacks_registered
+
+
+@pytest.fixture(autouse=True)
+def clear_register_metrics() -> None:
+    """Clear the metric for registered callbacks"""
+    callbacks_registered.clear()
 
 
 def get_metric_value(metric: Any, labels: Tuple[str]) -> float:

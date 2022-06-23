@@ -16,7 +16,7 @@ async def test_happy_path(amqp_test: Callable) -> None:
     """Test that messages can flow through our AMQP system."""
     params: Dict[str, Any] = {}
 
-    async def callback(message: IncomingMessage) -> None:
+    async def callback(message: IncomingMessage, **_: Any) -> None:
         params["message"] = message
 
     await amqp_test(callback)
@@ -29,7 +29,7 @@ async def test_callback_retrying(amqp_test: Callable) -> None:
     """Test that messages are resend when an exception occur."""
     params: Dict[str, Any] = {"call_count": 0, "message_ids": set()}
 
-    async def callback(message: IncomingMessage) -> None:
+    async def callback(message: IncomingMessage, **_: Any) -> None:
         params["message_ids"].add(message.message_id)
         params["call_count"] += 1
         if params["call_count"] < 5:

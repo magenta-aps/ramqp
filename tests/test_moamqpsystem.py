@@ -52,17 +52,11 @@ def construct_adapter(
     return moamqp_system._construct_adapter(callback)
 
 
-async def callback_func1(
-    _1: MORoutingKey,
-    _2: PayloadType,
-) -> None:
+async def callback_func1(_1: MORoutingKey, _2: PayloadType, **__: Any) -> None:
     """Dummy callback method."""
 
 
-async def callback_func2(
-    _1: MORoutingKey,
-    _2: PayloadType,
-) -> None:
+async def callback_func2(_1: MORoutingKey, _2: PayloadType, **__: Any) -> None:
     """Dummy callback method."""
 
 
@@ -72,8 +66,7 @@ async def test_happy_path(moamqp_test: Callable) -> None:
     params: Dict[str, Any] = {}
 
     async def callback(
-        mo_routing_key: MORoutingKey,
-        payload: PayloadType,
+        mo_routing_key: MORoutingKey, payload: PayloadType, **_: Any
     ) -> None:
         params["mo_routing_key"] = mo_routing_key
         params["payload"] = payload

@@ -13,7 +13,7 @@ from .metrics import exception_decode_counter
 logger = structlog.get_logger()
 
 
-CallbackType = Callable[[IncomingMessage], Awaitable]
+CallbackType = Callable[..., Awaitable]
 
 
 def function_to_name(function: Callable) -> str:

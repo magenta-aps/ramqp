@@ -68,7 +68,7 @@ def aio_pika_message() -> Message:
 def amqp_test() -> Callable:
     """Return an integration-test callable."""
 
-    async def make_amqp_test(callback: Callable) -> None:
+    async def make_amqp_test(callback: Callable) -> AMQPSystem:
         """Setup an integration-test AMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
@@ -85,10 +85,10 @@ def amqp_test() -> Callable:
             amqp_exchange=test_id,
         )
         amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
-        await amqp_system.start()
-        await amqp_system.publish_message(routing_key, payload)
-        await event.wait()
-        await amqp_system.stop()
+        async with amqp_system:
+            await amqp_system.publish_message(routing_key, payload)
+            await asyncio.wait_for(event.wait(), timeout=1)
+        return amqp_system
 
     return make_amqp_test
 
@@ -138,10 +138,9 @@ def moamqp_test(
             amqp_exchange=test_id,
         )
         amqp_system.register(mo_routing_key)(callback_wrapper)
-        await amqp_system.start()
-        await amqp_system.publish_message(mo_routing_key, mo_payload)
-        await event.wait()
-        await amqp_system.stop()
+        async with amqp_system:
+            await amqp_system.publish_message(mo_routing_key, mo_payload)
+            await asyncio.wait_for(event.wait(), timeout=1)
 
     return make_amqp_test
 

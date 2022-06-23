@@ -100,21 +100,17 @@ def test_register_multiple(amqp_system: AMQPSystem) -> None:
     assert get_registry(amqp_system) == {}
 
     amqp_system.register("test.routing.key")(callback_func1)
-
     assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
 
     amqp_system.register("test.routing.key")(callback_func1)
-
     assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
 
     amqp_system.register("test.routing.key2")(callback_func1)
-
     assert get_registry(amqp_system) == {
         callback_func1: {"test.routing.key", "test.routing.key2"}
     }
 
     amqp_system.register("test.routing.key")(callback_func2)
-
     assert get_registry(amqp_system) == {
         callback_func1: {"test.routing.key", "test.routing.key2"},
         callback_func2: {"test.routing.key"},

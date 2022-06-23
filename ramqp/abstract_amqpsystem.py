@@ -55,13 +55,16 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     reconnect_counter.inc()  # pragma: no cover
 
 
-async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
+async def _on_message(
+    callback: CallbackType, context: dict, message: IncomingMessage
+) -> None:
     """AbstractAMQPSystem message handler.
 
     Handles logging, metrics, retrying and exception handling.
 
     Args:
         callback: The callback to call with the message.
+        context: Additional context from the AMQP system passed handlers.
         message: The message to deliver to the callback.
 
     Returns:
@@ -77,12 +80,13 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
         with _handle_receive_metrics(routing_key, function_name):
             # Requeue messages on exceptions, so they can be retried.
             async with message.process(requeue=True):
-                await callback(message)
+                await callback(message=message, context=context)
     except Exception as exception:
         log.exception("Exception during on_message()")
         raise exception
 
 
+# pylint: disable=too-many-instance-attributes
 class AbstractAMQPSystem(AbstractAsyncContextManager):
     """Abstract base-class for AMQPSystems.
 
@@ -93,6 +97,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.settings = ConnectionSettings(*args, **kwargs)
+        self.context: dict = {}
 
         self._registry: Dict[CallbackType, Set[str]] = {}
 
@@ -189,7 +194,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             self._queues[function_name] = queue
 
             log.info("Starting message listener")
-            await queue.consume(partial(_on_message, callback))  # type: ignore
+            await queue.consume(partial(_on_message, callback, self.context))
 
             log.info("Binding routing keys")
             for routing_key in routing_keys:
