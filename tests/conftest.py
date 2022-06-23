@@ -1,17 +1,14 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
-# pylint: disable=redefined-outer-name,protected-access
+# pylint: disable=redefined-outer-name,not-callable
 """This module contains pytest specific code, fixtures and helpers."""
 import asyncio
 import json
 from datetime import datetime
 from typing import Any
 from typing import Callable
-from typing import cast
 from typing import Iterator
-from typing import Optional
-from typing import Type
 from uuid import uuid4
 
 import pytest
@@ -27,7 +24,6 @@ from structlog.testing import LogCapture
 
 from .common import random_string
 from ramqp import AMQPSystem
-from ramqp.abstract_amqpsystem import AbstractAMQPSystem
 from ramqp.mo_models import MOCallbackType
 from ramqp.mo_models import MORoutingKey
 from ramqp.mo_models import ObjectType
@@ -50,33 +46,15 @@ def fixture_configure_structlog(log_output: LogCapture) -> None:
 
 
 @pytest.fixture
-def _amqp_system_creator() -> Callable[..., AbstractAMQPSystem]:
-    def make_amqp_system(
-        amqp_system_class: Optional[Type[AbstractAMQPSystem]] = None,
-    ) -> AbstractAMQPSystem:
-        """Pytest fixture to construct an XAMQPSystem (defaults to AMQPSystem."""
-        amqp_system_class = amqp_system_class or AMQPSystem
-        amqp_system = amqp_system_class()
-        # Assert initial configuration
-        assert amqp_system.started is False
-        assert amqp_system._registry == {}
-        return amqp_system
-
-    return make_amqp_system
-
-
-@pytest.fixture
-def amqp_system(_amqp_system_creator: Callable[..., AMQPSystem]) -> AMQPSystem:
+def amqp_system() -> AMQPSystem:
     """Pytest fixture to construct an AMQPSystem."""
-    return cast(AMQPSystem, _amqp_system_creator(AMQPSystem))
+    return AMQPSystem()
 
 
 @pytest.fixture
-def moamqp_system(
-    _amqp_system_creator: Callable[..., AbstractAMQPSystem]
-) -> MOAMQPSystem:
+def moamqp_system() -> MOAMQPSystem:
     """Pytest fixture to construct an MOAMQPSystem."""
-    return cast(MOAMQPSystem, _amqp_system_creator(MOAMQPSystem))
+    return MOAMQPSystem()
 
 
 @pytest.fixture
@@ -87,7 +65,7 @@ def aio_pika_message() -> Message:
 
 
 @pytest.fixture
-def amqp_test(amqp_system: AMQPSystem) -> Callable:
+def amqp_test() -> Callable:
     """Return an integration-test callable."""
 
     async def make_amqp_test(callback: Callable) -> None:
@@ -102,11 +80,12 @@ def amqp_test(amqp_system: AMQPSystem) -> Callable:
             await callback(*args, **kwargs)
             event.set()
 
-        amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
-        await amqp_system.start(
+        amqp_system = AMQPSystem(
             amqp_queue_prefix=queue_prefix,
             amqp_exchange=test_id,
         )
+        amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
+        await amqp_system.start()
         await amqp_system.publish_message(routing_key, payload)
         await event.wait()
         await amqp_system.stop()
@@ -139,7 +118,6 @@ def mo_routing_key() -> MORoutingKey:
 
 @pytest.fixture
 def moamqp_test(
-    moamqp_system: MOAMQPSystem,
     mo_payload: PayloadType,
     mo_routing_key: MORoutingKey,
 ) -> Callable:
@@ -155,12 +133,12 @@ def moamqp_test(
             await callback(*args, **kwargs)  # type: ignore
             event.set()
 
-        amqp_system = moamqp_system
-        amqp_system.register(mo_routing_key)(callback_wrapper)
-        await amqp_system.start(
+        amqp_system = MOAMQPSystem(
             amqp_queue_prefix=queue_prefix,
             amqp_exchange=test_id,
         )
+        amqp_system.register(mo_routing_key)(callback_wrapper)
+        await amqp_system.start()
         await amqp_system.publish_message(mo_routing_key, mo_payload)
         await event.wait()
         await amqp_system.stop()
