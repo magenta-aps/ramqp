@@ -6,6 +6,12 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+4.0.0 - 2022-06-24
+------------------
+
+[#50111] Take settings arguments on init instead of start
+[#50111] Add context
+
 3.1.1 - 2022-06-22
 ------------------
 
