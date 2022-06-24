@@ -55,37 +55,6 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     reconnect_counter.inc()  # pragma: no cover
 
 
-async def _on_message(
-    callback: CallbackType, context: dict, message: IncomingMessage
-) -> None:
-    """AbstractAMQPSystem message handler.
-
-    Handles logging, metrics, retrying and exception handling.
-
-    Args:
-        callback: The callback to call with the message.
-        context: Additional context from the AMQP system passed handlers.
-        message: The message to deliver to the callback.
-
-    Returns:
-        None
-    """
-    assert message.routing_key is not None
-    routing_key = message.routing_key
-    function_name = function_to_name(callback)
-    log = logger.bind(function=function_name, routing_key=routing_key)
-
-    log.debug("Received message")
-    try:
-        with _handle_receive_metrics(routing_key, function_name):
-            # Requeue messages on exceptions, so they can be retried.
-            async with message.process(requeue=True):
-                await callback(message=message, context=context)
-    except Exception as exception:
-        log.exception("Exception during on_message()")
-        raise exception
-
-
 # pylint: disable=too-many-instance-attributes
 class AbstractAMQPSystem(AbstractAsyncContextManager):
     """Abstract base-class for AMQPSystems.
@@ -194,7 +163,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             self._queues[function_name] = queue
 
             log.info("Starting message listener")
-            await queue.consume(partial(_on_message, callback, self.context))
+            await queue.consume(partial(self._on_message, callback))
 
             log.info("Binding routing keys")
             for routing_key in routing_keys:
@@ -329,6 +298,35 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             return function
 
         return decorator
+
+    async def _on_message(
+        self, callback: CallbackType, message: IncomingMessage
+    ) -> None:
+        """Message handler.
+
+        Handles logging, metrics, retrying and exception handling.
+
+        Args:
+            callback: The callback to call with the message.
+            message: The message to deliver to the callback.
+
+        Returns:
+            None
+        """
+        assert message.routing_key is not None
+        routing_key = message.routing_key
+        function_name = function_to_name(callback)
+        log = logger.bind(function=function_name, routing_key=routing_key)
+
+        log.debug("Received message")
+        try:
+            with _handle_receive_metrics(routing_key, function_name):
+                # Requeue messages on exceptions, so they can be retried.
+                async with message.process(requeue=True):
+                    await callback(message=message, context=self.context)
+        except Exception as exception:
+            log.exception("Exception during on_message()")
+            raise exception
 
     async def _publish_message(self, routing_key: str, payload: dict) -> None:
         """Publish a message to the given routing key.

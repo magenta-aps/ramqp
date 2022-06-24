@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 from typing import Iterator
+from typing import Optional
 from uuid import uuid4
 
 import pytest
@@ -68,7 +69,9 @@ def aio_pika_message() -> Message:
 def amqp_test() -> Callable:
     """Return an integration-test callable."""
 
-    async def make_amqp_test(callback: Callable) -> AMQPSystem:
+    async def make_amqp_test(
+        callback: Callable, post_start: Optional[Callable[[AMQPSystem], None]] = None
+    ) -> AMQPSystem:
         """Setup an integration-test AMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
@@ -86,6 +89,8 @@ def amqp_test() -> Callable:
         )
         amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
         async with amqp_system:
+            if post_start is not None:
+                post_start(amqp_system)
             await amqp_system.publish_message(routing_key, payload)
             await asyncio.wait_for(event.wait(), timeout=1)
         return amqp_system
@@ -123,7 +128,10 @@ def moamqp_test(
 ) -> Callable:
     """Return an integration-test callable."""
 
-    async def make_amqp_test(callback: MOCallbackType) -> None:
+    async def make_amqp_test(
+        callback: MOCallbackType,
+        post_start: Optional[Callable[[MOAMQPSystem], None]] = None,
+    ) -> None:
         """Setup an integration-test MOAMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
@@ -139,6 +147,8 @@ def moamqp_test(
         )
         amqp_system.register(mo_routing_key)(callback_wrapper)
         async with amqp_system:
+            if post_start is not None:
+                post_start(amqp_system)
             await amqp_system.publish_message(mo_routing_key, mo_payload)
             await asyncio.wait_for(event.wait(), timeout=1)
 

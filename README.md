@@ -124,8 +124,8 @@ def create_app() -> FastAPI:
 @asynccontextmanager
 async def lifespan(context: dict, app: FastAPI):
     app.state.context = context
+    amqp_system.context = context
     async with amqp_system:
-        amqp_system.context = context
         yield
 
 
