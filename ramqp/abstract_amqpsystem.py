@@ -5,15 +5,16 @@
 import asyncio
 import json
 from abc import ABCMeta
+from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
 from typing import Any
-from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import Set
 from typing import Type
+from typing import TypeVar
 
 import structlog
 from aio_pika import connect_robust
@@ -36,6 +37,9 @@ from .metrics import routes_bound
 from .utils import CallbackType
 from .utils import function_to_name
 
+# Workaround until Self Types in Python 3.11 (PEP673)
+TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
+
 logger = structlog.get_logger()
 
 
@@ -51,13 +55,16 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     reconnect_counter.inc()  # pragma: no cover
 
 
-async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
+async def _on_message(
+    callback: CallbackType, context: dict, message: IncomingMessage
+) -> None:
     """AbstractAMQPSystem message handler.
 
     Handles logging, metrics, retrying and exception handling.
 
     Args:
         callback: The callback to call with the message.
+        context: Additional context from the AMQP system passed handlers.
         message: The message to deliver to the callback.
 
     Returns:
@@ -73,12 +80,13 @@ async def _on_message(callback: CallbackType, message: IncomingMessage) -> None:
         with _handle_receive_metrics(routing_key, function_name):
             # Requeue messages on exceptions, so they can be retried.
             async with message.process(requeue=True):
-                await callback(message)
+                await callback(message=message, context=context)
     except Exception as exception:
         log.exception("Exception during on_message()")
         raise exception
 
 
+# pylint: disable=too-many-instance-attributes
 class AbstractAMQPSystem(AbstractAsyncContextManager):
     """Abstract base-class for AMQPSystems.
 
@@ -87,7 +95,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.settings = ConnectionSettings(*args, **kwargs)
+        self.context: dict = {}
+
         self._registry: Dict[CallbackType, Set[str]] = {}
 
         self._connection: Optional[AbstractRobustConnection] = None
@@ -120,7 +131,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             and self._channel.is_initialized
         )
 
-    async def start(self, *args: Any, **kwargs: Any) -> None:
+    async def start(self) -> None:
         """Start the AMQPSystem.
 
         This method:
@@ -130,14 +141,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         * Binds routes to the queues according to the callback registry.
         * Setups up periodic metrics.
 
-        Args:
-            *args: Arguments are forwarded directly to ConnectionSettings.
-            **kwargs: Arguments are forwarded directly to ConnectionSettings.
-
         Returns:
             None
         """
-        settings = ConnectionSettings(*args, **kwargs)
+        settings = self.settings
 
         # We expect no active connections to be established
         assert self._connection is None
@@ -147,7 +154,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         # We expect function_to_name to be unique for each callback
         assert all_unique(map(function_to_name, self._registry.keys()))
 
-        # We except amqp_queue_prefix to be set if any callbacks are registered
+        # We expect amqp_queue_prefix to be set if any callbacks are registered
         if self._registry:
             assert settings.amqp_queue_prefix is not None
 
@@ -187,7 +194,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             self._queues[function_name] = queue
 
             log.info("Starting message listener")
-            await queue.consume(partial(_on_message, callback))  # type: ignore
+            await queue.consume(partial(_on_message, callback, self.context))
 
             log.info("Binding routing keys")
             for routing_key in routing_keys:
@@ -219,7 +226,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             await self._connection.close()
             self._connection = None
 
-    async def __aenter__(self) -> "AbstractAMQPSystem":
+    async def __aenter__(self: TAMQPSystem) -> TAMQPSystem:
         """Start the AMQPSystem.
 
         Returns: Self.

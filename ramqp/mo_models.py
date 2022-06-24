@@ -255,4 +255,4 @@ class MORoutingKey:
         )
 
 
-MOCallbackType = Callable[[MORoutingKey, PayloadType], Awaitable]
+MOCallbackType = Callable[..., Awaitable]

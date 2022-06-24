@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=protected-access
 """This module tests the AMQPSystem.register decorator method."""
 from typing import Dict
 from typing import Set
@@ -39,6 +40,7 @@ def test_register(amqp_system: AMQPSystem, log_output: LogCapture) -> None:
     """
     # Call decorator on our function, and check that the function is not modified
     # The decorator should purely register the callback, not modify our function
+    assert amqp_system._registry == {}
     decorated_func = amqp_system.register("test.routing.key")(callback_func1)
     assert id(callback_func1) == id(decorated_func)
 
@@ -98,21 +100,17 @@ def test_register_multiple(amqp_system: AMQPSystem) -> None:
     assert get_registry(amqp_system) == {}
 
     amqp_system.register("test.routing.key")(callback_func1)
-
     assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
 
     amqp_system.register("test.routing.key")(callback_func1)
-
     assert get_registry(amqp_system) == {callback_func1: {"test.routing.key"}}
 
     amqp_system.register("test.routing.key2")(callback_func1)
-
     assert get_registry(amqp_system) == {
         callback_func1: {"test.routing.key", "test.routing.key2"}
     }
 
     amqp_system.register("test.routing.key")(callback_func2)
-
     assert get_registry(amqp_system) == {
         callback_func1: {"test.routing.key", "test.routing.key2"},
         callback_func2: {"test.routing.key"},

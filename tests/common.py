@@ -14,11 +14,11 @@ from aio_pika import IncomingMessage
 from ramqp.abstract_amqpsystem import AbstractAMQPSystem
 
 
-async def callback_func1(_: IncomingMessage) -> None:
+async def callback_func1(_: IncomingMessage, **__: Any) -> None:
     """Dummy callback method."""
 
 
-async def callback_func2(_: IncomingMessage) -> None:
+async def callback_func2(_: IncomingMessage, **__: Any) -> None:
     """Dummy callback method."""
 
 

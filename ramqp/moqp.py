@@ -54,7 +54,7 @@ class MOAMQPSystem(AbstractAMQPSystem):
             return self._adapter_map[adaptee]
 
         @wraps(adaptee)
-        async def adapter(message: IncomingMessage) -> None:
+        async def adapter(message: IncomingMessage, context: dict) -> None:
             """Adapter function mapping MOCallbackType to CallbackType.
 
             Unpacks the provided message and converts it into a routing tuple and
@@ -62,14 +62,17 @@ class MOAMQPSystem(AbstractAMQPSystem):
 
             Args:
                 message: incoming message to converted and passed to callback.
+                context: Additional context from the AMQP system passed handlers.
 
             Returns:
                 None
             """
             assert message.routing_key is not None
-            routing_key = MORoutingKey.from_routing_key(message.routing_key)
+            mo_routing_key = MORoutingKey.from_routing_key(message.routing_key)
             payload = parse_raw_as(PayloadType, message.body)
-            await adaptee(routing_key, payload)
+            await adaptee(
+                mo_routing_key=mo_routing_key, payload=payload, context=context
+            )
 
         # Register our newly created adapter for early return.
         self._adapter_map[adaptee] = adapter
