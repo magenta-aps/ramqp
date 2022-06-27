@@ -14,19 +14,20 @@ from aio_pika import IncomingMessage
 from fastapi.encoders import jsonable_encoder
 from pydantic import parse_raw_as
 
-from .abstract_amqpsystem import AbstractAMQPRouter
-from .abstract_amqpsystem import AbstractAMQPSystem
-from .mo_models import MOCallbackType
-from .mo_models import MORoutingKey
-from .mo_models import ObjectType
-from .mo_models import PayloadType
-from .mo_models import RequestType
-from .mo_models import ServiceType
-from .utils import CallbackType
+from ..abstract import AbstractAMQPSystem
+from ..abstract import AbstractPublishMixin
+from ..abstract import AbstractRouter
+from ..mo.models import MOCallbackType
+from ..mo.models import MORoutingKey
+from ..mo.models import ObjectType
+from ..mo.models import PayloadType
+from ..mo.models import RequestType
+from ..mo.models import ServiceType
+from ..utils import CallbackType
 
 
-class MOAMQPRouter(AbstractAMQPRouter):
-    """MO specific AMQPRouter.
+class MORouter(AbstractRouter):
+    """MO specific Router.
 
     Has specifically tailored `register` methods, which utilize the MO AMQP
     routing-key structure and payload format.
@@ -156,14 +157,12 @@ class MOAMQPRouter(AbstractAMQPRouter):
         return decorator
 
 
-class MOAMQPSystem(AbstractAMQPSystem[MOAMQPRouter]):
-    """MO specific AMQPSystem.
+class MOPublishMixin(AbstractPublishMixin):
+    """MO specific PublishMixin.
 
-    Has a specifically tailored `publish_message` methods, which utilize the MO AMQP
+    Has a specifically tailored `publish_message` method, which utilize the MO AMQP
     routing-key structure and payload format.
     """
-
-    router_cls = MOAMQPRouter
 
     @overload
     async def publish_message(
@@ -217,3 +216,9 @@ class MOAMQPSystem(AbstractAMQPSystem[MOAMQPRouter]):
         routing_key = MORoutingKey.build(*args, **kwargs)
         payload_obj = jsonable_encoder(payload)
         await self._publish_message(str(routing_key), payload_obj)
+
+
+class MOAMQPSystem(AbstractAMQPSystem[MORouter], MOPublishMixin):
+    """MO specific AMQPSystem."""
+
+    router_cls = MORouter

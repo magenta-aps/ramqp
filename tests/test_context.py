@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from ramqp import AMQPSystem
-from ramqp.moqp import MOAMQPSystem
+from ramqp.mo import MOAMQPSystem
 
 
 @pytest.mark.integrationtest

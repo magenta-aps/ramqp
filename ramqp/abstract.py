@@ -56,10 +56,10 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     reconnect_counter.inc()  # pragma: no cover
 
 
-class AbstractAMQPRouter:
-    """Abstract base-class for AMQPRouters.
+class AbstractRouter:
+    """Abstract base-class for Routers.
 
-    Shared code used by both AMQPRouter and MOAMQPRouter.
+    Shared code used by both Router and MORouter.
     """
 
     def __init__(self) -> None:
@@ -120,7 +120,33 @@ class AbstractAMQPRouter:
         return decorator
 
 
-TRouter = TypeVar("TRouter", bound=AbstractAMQPRouter)
+class AbstractPublishMixin:
+    """Abstract base-class for Publish Mixins.
+
+    Shared code used by both PublishMixin and MOPublishMixin.
+    """
+
+    _exchange: Optional[AbstractExchange]
+
+    async def _publish_message(self, routing_key: str, payload: dict) -> None:
+        """Publish a message to the given routing key.
+
+        Args:
+            routing_key: The routing key to send the message to.
+            payload: The message payload.
+
+        Returns:
+            None
+        """
+        if self._exchange is None:
+            raise ValueError("Must call start() before publish message!")
+
+        with _handle_publish_metrics(routing_key):
+            message = Message(body=json.dumps(payload).encode("utf-8"))
+            await self._exchange.publish(routing_key=routing_key, message=message)
+
+
+TRouter = TypeVar("TRouter", bound=AbstractRouter)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -346,20 +372,3 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         except Exception as exception:
             log.exception("Exception during on_message()")
             raise exception
-
-    async def _publish_message(self, routing_key: str, payload: dict) -> None:
-        """Publish a message to the given routing key.
-
-        Args:
-            routing_key: The routing key to send the message to.
-            payload: The message payload.
-
-        Returns:
-            None
-        """
-        if self._exchange is None:
-            raise ValueError("Must call start() before publish message!")
-
-        with _handle_publish_metrics(routing_key):
-            message = Message(body=json.dumps(payload).encode("utf-8"))
-            await self._exchange.publish(routing_key=routing_key, message=message)

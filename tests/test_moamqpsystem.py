@@ -12,13 +12,13 @@ from more_itertools import all_unique
 
 from .common import _test_context_manager
 from .common import _test_run_forever_worker
-from ramqp.mo_models import MOCallbackType
-from ramqp.mo_models import MORoutingKey
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import PayloadType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import ServiceType
-from ramqp.moqp import MOAMQPSystem
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo.models import MOCallbackType
+from ramqp.mo.models import MORoutingKey
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import PayloadType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 from ramqp.utils import CallbackType
 from ramqp.utils import function_to_name
 
@@ -32,7 +32,6 @@ def get_registry(moamqp_system: MOAMQPSystem) -> Dict[CallbackType, Set[str]]:
     Returns:
         The callback registry.
     """
-    # pylint: disable=protected-access
     return moamqp_system.router.registry
 
 

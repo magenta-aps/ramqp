@@ -25,16 +25,16 @@ from structlog.testing import LogCapture
 
 from .common import random_string
 from ramqp import AMQPSystem
-from ramqp.amqpsystem import AMQPRouter
+from ramqp import Router
 from ramqp.config import ConnectionSettings
-from ramqp.mo_models import MOCallbackType
-from ramqp.mo_models import MORoutingKey
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import PayloadType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import ServiceType
-from ramqp.moqp import MOAMQPRouter
-from ramqp.moqp import MOAMQPSystem
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo import MORouter
+from ramqp.mo.models import MOCallbackType
+from ramqp.mo.models import MORoutingKey
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import PayloadType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 
 
 @pytest.fixture
@@ -62,15 +62,15 @@ def moamqp_system() -> MOAMQPSystem:
 
 
 @pytest.fixture
-def amqp_router() -> AMQPRouter:
-    """Pytest fixture to construct an AMQPRouter."""
-    return AMQPRouter()
+def amqp_router() -> Router:
+    """Pytest fixture to construct an Router."""
+    return Router()
 
 
 @pytest.fixture
-def moamqp_router() -> MOAMQPRouter:
-    """Pytest fixture to construct an MOAMQPRouter."""
-    return MOAMQPRouter()
+def moamqp_router() -> MORouter:
+    """Pytest fixture to construct an MORouter."""
+    return MORouter()
 
 
 @pytest.fixture

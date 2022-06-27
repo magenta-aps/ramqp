@@ -6,10 +6,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from ramqp.mo_models import MORoutingKey
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import ServiceType
+from ramqp.mo.models import MORoutingKey
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 
 
 def test_to_routing_key(mo_routing_key: MORoutingKey) -> None:

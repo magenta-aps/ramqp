@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=protected-access
-"""This module tests the AMQPRouter.register decorator method."""
+"""This module tests the Router.register decorator method."""
 from typing import Dict
 from typing import Set
 
@@ -26,7 +26,6 @@ def get_registry(amqp_system: AMQPSystem) -> Dict[CallbackType, Set[str]]:
     Returns:
         The callback registry.
     """
-    # pylint: disable=protected-access
     return amqp_system.router.registry
 
 

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 
 from aio_pika import IncomingMessage
 
-from ramqp.abstract_amqpsystem import AbstractAMQPSystem
+from ramqp.abstract import AbstractAMQPSystem
 
 
 async def callback_func1(_: IncomingMessage, **__: Any) -> None:
