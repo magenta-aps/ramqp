@@ -14,21 +14,33 @@ wrapper around the generic abstraction.
 
 ### Generic
 Receiving:
-```python
-from typing import Any
-from ramqp import AMQPSystem
 
-amqp_system = AMQPSystem(amqp_queue_prefix="my-program")
+```python
+import asyncio
+from typing import Any
+
+from ramqp import AMQPSystem
+from ramqp import Router
+from ramqp.config import ConnectionSettings
+
+router = Router()
 
 # Configure the callback function to receive messages for the two routing keys.
 # If an exception is thrown from the function, the message is not acknowledged.
 # Thus, it will be retried immediately.
-@amqp_system.register("my.routing.key")
-@amqp_system.register("my.other.routing.key")
+@router.register("my.routing.key")
+@router.register("my.other.routing.key")
 async def callback_function(routing_key: str, **kwargs: Any) -> None:
     pass
 
-amqp_system.run_forever()
+
+async def main() -> None:
+    settings = ConnectionSettings(amqp_queue_prefix="my-program")
+    async with AMQPSystem(settings=settings, router=router) as amqp_system:
+        await amqp_system.run_forever()
+
+
+asyncio.run(main())
 ```
 **NOTE**: `**kwargs` is required in all handlers for forward compatibility: the
 framework can add new keywords in the future, and existing handlers should
@@ -46,41 +58,54 @@ with AMQPSystem() as amqp_system:
 
 ### MO AMQP
 Receiving:
+
 ```python
+import asyncio
 from typing import Any
 
-from ramqp.moqp import MOAMQPSystem
-from ramqp.mo_models import MORoutingKey
-from ramqp.mo_models import ServiceType
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import PayloadType
+from ramqp.config import ConnectionSettings
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo import MORouter
+from ramqp.mo.models import MORoutingKey
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import PayloadType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 
-amqp_system = MOAMQPSystem(amqp_queue_prefix="my-program")
+router = MORouter()
+
 
 # Configure the callback function to receive messages for the two routing keys.
 # If an exception is thrown from the function, the message is not acknowledged.
 # Thus, it will be retried immediately.
-@amqp_system.register(ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT)
-@amqp_system.register("employee.it.create")
+@router.register(ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT)
+@router.register("employee.it.create")
 async def callback_function(
     mo_routing_key: MORoutingKey, payload: PayloadType, **kwargs: Any
 ) -> None:
     pass
 
-amqp_system.run_forever()
+
+async def main() -> None:
+    settings = ConnectionSettings(amqp_queue_prefix="my-program")
+    async with MOAMQPSystem(settings=settings, router=router) as amqp_system:
+        await amqp_system.run_forever()
+
+
+asyncio.run(main())
 ```
 
 Sending:
-```python
-from uuid import uuid4
-from datetime import datetime
 
-from ramqp.moqp import MOAMQPSystem
-from ramqp.mo_models import ServiceType
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import PayloadType
+```python
+from datetime import datetime
+from uuid import uuid4
+
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import PayloadType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 
 payload = PayloadType(uuid=uuid4(), object_uuid=uuid4(), time=datetime.now())
 
@@ -96,47 +121,66 @@ API at the same time. To solve this issue, the main entrypoint of the program is
 the ASGI application, with the AMQP system tied to its lifespan. The example
 below also shows how additional context can be injected into the AMQP system,
 and subsequently retrieved in the handlers:
+
 ```python
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import Any
 
+from fastapi import APIRouter
 from fastapi import FastAPI
 from starlette.requests import Request
 
-from ramqp.moqp import MOAMQPSystem
+from ramqp.config import ConnectionSettings
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo import MORouter
 
-amqp_system = MOAMQPSystem(amqp_queue_prefix="my-program")
+amqp_router = MORouter()
+fastapi_router = APIRouter()
 
 
-@amqp_system.register("employee.it.create")
+@amqp_router.register("employee.it.create")
 async def callback_function(context: dict, **kwargs: Any) -> None:
-    print(context["state"].greeting)
+    print(context["greeting"])  # Hello, world!
+
+
+@fastapi_router.get("/hello")
+async def hello(request: Request) -> None:
+    # Passing the 'amqp_system' in the context would allow FastAPI to actually publish
+    # this greeting to the whole world.
+    return request.app.state.context["greeting"]  # Hello, world!
 
 
 def create_app() -> FastAPI:
     context = {"greeting": "Hello, world!"}
+
     app = FastAPI()
-    app.router.lifespan_context = partial(lifespan, context)
+    app.include_router(fastapi_router)
+    app.state.context = context  # share context with FastAPI
+
+    settings = ConnectionSettings(amqp_queue_prefix="my-program")
+    amqp_system = MOAMQPSystem(
+        settings=settings,
+        router=amqp_router,
+        context=context,  # share context with the AMQP system
+    )
+
+    app.router.lifespan_context = partial(lifespan, context, amqp_system)
     return app
 
 
 @asynccontextmanager
-async def lifespan(context: dict, app: FastAPI):
-    app.state.context = context
-    amqp_system.context = context
+async def lifespan(context: dict, amqp_system: MOAMQPSystem, app: FastAPI):
+    # Add to the context as required
+
     async with amqp_system:
+        # Yield to keep the AMQP system open until the ASGI application is closed.
+        # Control will be returned to here when the ASGI application is shut down.
+        # Consider using AsyncExitStack in case of multiple context managers.
         yield
-
-
-app = create_app()
-
-
-@app.get("/hello")
-async def hello(request: Request) -> None:
-    return request.app.state.greeting
 ```
-Save the example as `example.py` and try it with `uvicorn example:app`.
+Save the example as `example.py` and try it with
+`uvicorn --factory example:create_app`.
 
 
 ### Metrics

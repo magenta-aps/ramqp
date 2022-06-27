@@ -85,9 +85,9 @@ async def test_happy_path(moamqp_test: Callable) -> None:
     assert routing_key.request_type == RequestType.CREATE
 
 
-def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
+async def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
     """Test that run_forever calls start, then stop."""
-    _test_run_forever_worker(moamqp_system)
+    await _test_run_forever_worker(moamqp_system)
 
 
 async def test_context_manager(moamqp_system: MOAMQPSystem) -> None:

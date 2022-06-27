@@ -10,9 +10,9 @@ from .common import _test_run_forever_worker
 from ramqp import AMQPSystem
 
 
-def test_run_forever(amqp_system: AMQPSystem) -> None:
+async def test_run_forever(amqp_system: AMQPSystem) -> None:
     """Test that run_forever calls start, then stop."""
-    _test_run_forever_worker(amqp_system)
+    await _test_run_forever_worker(amqp_system)
 
 
 async def test_context_manager(amqp_system: AMQPSystem) -> None:

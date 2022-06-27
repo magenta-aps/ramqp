@@ -6,6 +6,7 @@
 import asyncio
 import json
 from abc import ABCMeta
+from asyncio import CancelledError
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from functools import partial
@@ -221,6 +222,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         Returns:
             None
         """
+        logger.info("Starting AMQP system")
         settings = self.settings
 
         # We expect no active connections to be established
@@ -289,6 +291,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         Returns:
             None
         """
+        logger.info("Stopping AMQP system")
         if self._periodic_task is not None:
             self._periodic_task.cancel()
             self._periodic_task = None
@@ -296,10 +299,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         self._exchange = None
 
         if self._channel is not None:
-            await self._channel.close()
             self._channel = None
 
         if self._connection is not None:
+            logger.info("Closing AMQP connection")
             await self._connection.close()
             self._connection = None
 
@@ -329,20 +332,20 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         await self.stop()
         return await super().__aexit__(__exc_type, __exc_value, __traceback)
 
-    def run_forever(self) -> None:
-        """Start the AMQPSystem and run it forever.
+    async def run_forever(self) -> None:
+        """Start the AMQPSystem, if it isn't already, and run it forever.
 
         Returns:
             None
         """
-        loop = asyncio.get_event_loop()
-        # Setup everything
-        loop.run_until_complete(self.start())
-        # Run forever listening to messages
-        loop.run_forever()
-        # Clean up everything
-        loop.run_until_complete(self.stop())
-        loop.close()
+        logger.info("Running forever")
+        if not self.started:
+            await self.start()
+        try:
+            # Wait until terminate
+            await asyncio.get_event_loop().create_future()
+        except CancelledError:
+            logger.info("Run cancelled")
 
     async def _on_message(
         self, callback: CallbackType, message: IncomingMessage
@@ -368,6 +371,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             with _handle_receive_metrics(routing_key, function_name):
                 # Requeue messages on exceptions, so they can be retried.
                 async with message.process(requeue=True):
+                    # TODO: Add retry metric
                     await callback(message=message, context=self.context)
         except Exception as exception:
             log.exception("Exception during on_message()")
