@@ -26,6 +26,7 @@ from structlog.testing import LogCapture
 from .common import random_string
 from ramqp import AMQPSystem
 from ramqp.amqpsystem import AMQPRouter
+from ramqp.config import ConnectionSettings
 from ramqp.mo_models import MOCallbackType
 from ramqp.mo_models import MORoutingKey
 from ramqp.mo_models import ObjectType
@@ -98,8 +99,10 @@ def amqp_test() -> Callable:
             event.set()
 
         amqp_system = AMQPSystem(
-            amqp_queue_prefix=queue_prefix,
-            amqp_exchange=test_id,
+            settings=ConnectionSettings(
+                amqp_queue_prefix=queue_prefix,
+                amqp_exchange=test_id,
+            ),
         )
         amqp_system.router.register(routing_key)(callback_wrapper)
         async with amqp_system:
@@ -156,8 +159,10 @@ def moamqp_test(
             event.set()
 
         amqp_system = MOAMQPSystem(
-            amqp_queue_prefix=queue_prefix,
-            amqp_exchange=test_id,
+            settings=ConnectionSettings(
+                amqp_queue_prefix=queue_prefix,
+                amqp_exchange=test_id,
+            ),
         )
         amqp_system.router.register(mo_routing_key)(callback_wrapper)
         async with amqp_system:

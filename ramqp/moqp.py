@@ -156,7 +156,7 @@ class MOAMQPRouter(AbstractAMQPRouter):
         return decorator
 
 
-class MOAMQPSystem(AbstractAMQPSystem):
+class MOAMQPSystem(AbstractAMQPSystem[MOAMQPRouter]):
     """MO specific AMQPSystem.
 
     Has a specifically tailored `publish_message` methods, which utilize the MO AMQP
@@ -164,7 +164,6 @@ class MOAMQPSystem(AbstractAMQPSystem):
     """
 
     router_cls = MOAMQPRouter
-    router: MOAMQPRouter
 
     @overload
     async def publish_message(

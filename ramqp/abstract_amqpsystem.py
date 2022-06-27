@@ -10,8 +10,8 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
-from typing import Any
 from typing import Dict
+from typing import Generic
 from typing import Optional
 from typing import Set
 from typing import Type
@@ -120,22 +120,37 @@ class AbstractAMQPRouter:
         return decorator
 
 
+TRouter = TypeVar("TRouter", bound=AbstractAMQPRouter)
+
+
 # pylint: disable=too-many-instance-attributes
-class AbstractAMQPSystem(AbstractAsyncContextManager):
+class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
     """Abstract base-class for AMQPSystems.
 
     Shared code used by both AMQPSystem and MOAMQPSystem.
     """
 
     __metaclass__ = ABCMeta
-    router_cls = AbstractAMQPRouter
+    router_cls: Type[TRouter]
 
     def __init__(
-        self, *args: Any, **kwargs: Any
-    ) -> None:  # TODO: Take settings, context, router
-        self.settings = ConnectionSettings(*args, **kwargs)
-        self.context: dict = {}
-        self.router = self.router_cls()
+        self,
+        settings: Optional[ConnectionSettings] = None,
+        router: Optional[TRouter] = None,
+        context: Optional[dict] = None,
+    ) -> None:
+        if settings is None:
+            settings = ConnectionSettings()
+        self.settings = settings
+
+        if router is None:
+            router = self.router_cls()
+        self.router: TRouter = router
+
+        # None check is important to avoid losing the reference to falsy passed object
+        if context is None:
+            context = {}
+        self.context = context
 
         self._connection: Optional[AbstractRobustConnection] = None
         self._channel: Optional[AbstractChannel] = None
