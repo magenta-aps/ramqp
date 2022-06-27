@@ -33,7 +33,7 @@ def get_registry(moamqp_system: MOAMQPSystem) -> Dict[CallbackType, Set[str]]:
         The callback registry.
     """
     # pylint: disable=protected-access
-    return moamqp_system._registry
+    return moamqp_system.router.registry
 
 
 def construct_adapter(
@@ -49,7 +49,7 @@ def construct_adapter(
         The callback registry.
     """
     # pylint: disable=protected-access
-    return moamqp_system._construct_adapter(callback)
+    return moamqp_system.router._construct_adapter(callback)
 
 
 async def callback_func1(_1: MORoutingKey, _2: PayloadType, **__: Any) -> None:
@@ -121,7 +121,7 @@ def test_construct_adapter(moamqp_system: MOAMQPSystem) -> None:
     def get_adapter_map(
         moamqp_system: MOAMQPSystem,
     ) -> Dict[MOCallbackType, CallbackType]:
-        return moamqp_system._adapter_map  # pylint: disable=protected-access
+        return moamqp_system.router._adapter_map  # pylint: disable=protected-access
 
     assert get_adapter_map(moamqp_system) == {}
 
@@ -166,19 +166,19 @@ def test_register_multiple(moamqp_system: MOAMQPSystem) -> None:
     assert get_registry(moamqp_system) == {}
 
     # Test that registering our callback, adds the adapter to the registry
-    moamqp_system.register(*mo_routing_tuple1)(callback_func1)
+    moamqp_system.router.register(*mo_routing_tuple1)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1}}
 
     # Test that adding the same entry multiple times only adds once
-    moamqp_system.register(*mo_routing_tuple1)(callback_func1)
+    moamqp_system.router.register(*mo_routing_tuple1)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1}}
 
     # Test that adding the same callback with another key expands the set
-    moamqp_system.register(*mo_routing_tuple2)(callback_func1)
+    moamqp_system.router.register(*mo_routing_tuple2)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1, routing_key2}}
 
     # Test that adding an unrelated callback adds another entry
-    moamqp_system.register(*mo_routing_tuple1)(callback_func2)
+    moamqp_system.router.register(*mo_routing_tuple1)(callback_func2)
     assert get_registry(moamqp_system) == {
         adapter1: {routing_key1, routing_key2},
         adapter2: {routing_key1},

@@ -1,12 +1,21 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=too-few-public-methods
 """This module contains the Generic AMQPSystem."""
+from .abstract_amqpsystem import AbstractAMQPRouter
 from .abstract_amqpsystem import AbstractAMQPSystem
+
+
+class AMQPRouter(AbstractAMQPRouter):
+    """Generic AMQPRouter."""
+
+    register = AbstractAMQPRouter._register
 
 
 class AMQPSystem(AbstractAMQPSystem):
     """Generic AMQPSystem."""
 
-    register = AbstractAMQPSystem._register
+    router_cls = AMQPRouter
+    router: AMQPRouter
     publish_message = AbstractAMQPSystem._publish_message

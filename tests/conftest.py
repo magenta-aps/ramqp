@@ -25,12 +25,14 @@ from structlog.testing import LogCapture
 
 from .common import random_string
 from ramqp import AMQPSystem
+from ramqp.amqpsystem import AMQPRouter
 from ramqp.mo_models import MOCallbackType
 from ramqp.mo_models import MORoutingKey
 from ramqp.mo_models import ObjectType
 from ramqp.mo_models import PayloadType
 from ramqp.mo_models import RequestType
 from ramqp.mo_models import ServiceType
+from ramqp.moqp import MOAMQPRouter
 from ramqp.moqp import MOAMQPSystem
 
 
@@ -56,6 +58,18 @@ def amqp_system() -> AMQPSystem:
 def moamqp_system() -> MOAMQPSystem:
     """Pytest fixture to construct an MOAMQPSystem."""
     return MOAMQPSystem()
+
+
+@pytest.fixture
+def amqp_router() -> AMQPRouter:
+    """Pytest fixture to construct an AMQPRouter."""
+    return AMQPRouter()
+
+
+@pytest.fixture
+def moamqp_router() -> MOAMQPRouter:
+    """Pytest fixture to construct an MOAMQPRouter."""
+    return MOAMQPRouter()
 
 
 @pytest.fixture
@@ -87,7 +101,7 @@ def amqp_test() -> Callable:
             amqp_queue_prefix=queue_prefix,
             amqp_exchange=test_id,
         )
-        amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
+        amqp_system.router.register(routing_key)(callback_wrapper)
         async with amqp_system:
             if post_start is not None:
                 post_start(amqp_system)
@@ -145,7 +159,7 @@ def moamqp_test(
             amqp_queue_prefix=queue_prefix,
             amqp_exchange=test_id,
         )
-        amqp_system.register(mo_routing_key)(callback_wrapper)
+        amqp_system.router.register(mo_routing_key)(callback_wrapper)
         async with amqp_system:
             if post_start is not None:
                 post_start(amqp_system)

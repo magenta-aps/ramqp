@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=too-few-public-methods
 """This module contains the Abstract AMQPSystem."""
 import asyncio
 import json
@@ -55,6 +56,70 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     reconnect_counter.inc()  # pragma: no cover
 
 
+class AbstractAMQPRouter:
+    """Abstract base-class for AMQPRouters.
+
+    Shared code used by both AMQPRouter and MOAMQPRouter.
+    """
+
+    def __init__(self) -> None:
+        self.registry: Dict[CallbackType, Set[str]] = {}
+
+    def _register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
+        """Get a decorator for registering callbacks.
+
+        Examples:
+            ```
+            address_create_decorator = router.register("EMPLOYEE.ADDRESS.CREATE")
+
+            @address_create_decorator
+            def callback1(message: IncomingMessage):
+                pass
+
+            @address_create_decorator
+            def callback2(message: IncomingMessage):
+                pass
+            ```
+            Or directly:
+            ```
+            @router.register("EMPLOYEE.ADDRESS.CREATE")
+            def callback1(message: IncomingMessage):
+                pass
+
+            @router.register("EMPLOYEE.ADDRESS.CREATE")
+            def callback2(message: IncomingMessage):
+                pass
+            ```
+
+        Args:
+            routing_key: The routing key to bind messages for.
+
+        Returns:
+            A decorator for registering a function to receive callbacks.
+        """
+        assert routing_key != ""
+
+        def decorator(function: CallbackType) -> CallbackType:
+            """Registers the given callback and routing key in the callback registry.
+
+            Args:
+                function: The callback to registry.
+
+            Returns:
+                The unmodified given function.
+            """
+            function_name = function_to_name(function)
+
+            log = logger.bind(routing_key=routing_key, function=function_name)
+            log.info("Register called")
+
+            callbacks_registered.labels(routing_key).inc()
+            self.registry.setdefault(function, set()).add(routing_key)
+            return function
+
+        return decorator
+
+
 # pylint: disable=too-many-instance-attributes
 class AbstractAMQPSystem(AbstractAsyncContextManager):
     """Abstract base-class for AMQPSystems.
@@ -63,12 +128,14 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
     """
 
     __metaclass__ = ABCMeta
+    router_cls = AbstractAMQPRouter
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, **kwargs: Any
+    ) -> None:  # TODO: Take settings, context, router
         self.settings = ConnectionSettings(*args, **kwargs)
         self.context: dict = {}
-
-        self._registry: Dict[CallbackType, Set[str]] = {}
+        self.router = self.router_cls()
 
         self._connection: Optional[AbstractRobustConnection] = None
         self._channel: Optional[AbstractChannel] = None
@@ -121,10 +188,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         assert self._exchange is None
 
         # We expect function_to_name to be unique for each callback
-        assert all_unique(map(function_to_name, self._registry.keys()))
+        assert all_unique(map(function_to_name, self.router.registry.keys()))
 
         # We expect amqp_queue_prefix to be set if any callbacks are registered
-        if self._registry:
+        if self.router.registry:
             assert settings.amqp_queue_prefix is not None
 
         logger.info(
@@ -152,7 +219,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
 
         # TODO: Create queues and binds in parallel?
         self._queues = {}
-        for callback, routing_keys in self._registry.items():
+        for callback, routing_keys in self.router.registry.items():
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
 
@@ -221,83 +288,20 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         await self.stop()
         return await super().__aexit__(__exc_type, __exc_value, __traceback)
 
-    def run_forever(self, *args: Any, **kwargs: str) -> None:
+    def run_forever(self) -> None:
         """Start the AMQPSystem and run it forever.
-
-        Args:
-            *args: Arguments are forwarded directly to ConnectionSettings.
-            **kwargs: Arguments are forwarded directly to ConnectionSettings.
 
         Returns:
             None
         """
         loop = asyncio.get_event_loop()
         # Setup everything
-        loop.run_until_complete(self.start(*args, **kwargs))
+        loop.run_until_complete(self.start())
         # Run forever listening to messages
         loop.run_forever()
         # Clean up everything
         loop.run_until_complete(self.stop())
         loop.close()
-
-    def _register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
-        """Get a decorator for registering callbacks.
-
-        Examples:
-            ```
-            address_create_decorator = amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
-
-            @address_create_decorator
-            def callback1(message: IncomingMessage):
-                pass
-
-            @address_create_decorator
-            def callback2(message: IncomingMessage):
-                pass
-            ```
-            Or directly:
-            ```
-            @amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
-            def callback1(message: IncomingMessage):
-                pass
-
-            @amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
-            def callback2(message: IncomingMessage):
-                pass
-            ```
-
-        Args:
-            routing_key: The routing key to bind messages for.
-
-        Returns:
-            A decorator for registering a function to receive callbacks.
-        """
-        assert routing_key != ""
-
-        def decorator(function: CallbackType) -> CallbackType:
-            """Registers the given callback and routing key in the callback registry.
-
-            Args:
-                function: The callback to registry.
-
-            Returns:
-                The unmodified given function.
-            """
-            function_name = function_to_name(function)
-
-            log = logger.bind(routing_key=routing_key, function=function_name)
-            log.info("Register called")
-
-            if self.started:
-                message = "Cannot register callback after run() has been called!"
-                log.error(message)
-                raise ValueError(message)
-
-            callbacks_registered.labels(routing_key).inc()
-            self._registry.setdefault(function, set()).add(routing_key)
-            return function
-
-        return decorator
 
     async def _on_message(
         self, callback: CallbackType, message: IncomingMessage
