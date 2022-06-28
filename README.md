@@ -35,7 +35,7 @@ async def callback_function(routing_key: str, **kwargs: Any) -> None:
 
 
 async def main() -> None:
-    settings = ConnectionSettings(amqp_queue_prefix="my-program")
+    settings = ConnectionSettings(queue_prefix="my-program")
     async with AMQPSystem(settings=settings, router=router) as amqp_system:
         await amqp_system.run_forever()
 
@@ -87,7 +87,7 @@ async def callback_function(
 
 
 async def main() -> None:
-    settings = ConnectionSettings(amqp_queue_prefix="my-program")
+    settings = ConnectionSettings(queue_prefix="my-program")
     async with MOAMQPSystem(settings=settings, router=router) as amqp_system:
         await amqp_system.run_forever()
 
@@ -158,7 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(fastapi_router)
     app.state.context = context  # share context with FastAPI
 
-    settings = ConnectionSettings(amqp_queue_prefix="my-program")
+    settings = ConnectionSettings(queue_prefix="my-program")
     amqp_system = MOAMQPSystem(
         settings=settings,
         router=amqp_router,

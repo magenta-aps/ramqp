@@ -233,31 +233,29 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         # We expect function_to_name to be unique for each callback
         assert all_unique(map(function_to_name, self.router.registry.keys()))
 
-        # We expect amqp_queue_prefix to be set if any callbacks are registered
+        # We expect queue_prefix to be set if any callbacks are registered
         if self.router.registry:
-            assert settings.amqp_queue_prefix is not None
+            assert settings.queue_prefix is not None
 
         logger.info(
             "Establishing AMQP connection",
-            scheme=settings.amqp_url.scheme,
-            user=settings.amqp_url.user,
-            host=settings.amqp_url.host,
-            port=settings.amqp_url.port,
-            path=settings.amqp_url.path,
+            scheme=settings.url.scheme,
+            user=settings.url.user,
+            host=settings.url.host,
+            port=settings.url.port,
+            path=settings.url.path,
         )
-        self._connection = await connect_robust(settings.amqp_url)
+        self._connection = await connect_robust(settings.url)
         self._connection.reconnect_callbacks.add(reconnect_callback)
 
         logger.info("Creating AMQP channel")
         self._channel = await self._connection.channel()
         await self._channel.set_qos(prefetch_count=10)
 
-        logger.info(
-            "Attaching AMQP exchange to channel", exchange=settings.amqp_exchange
-        )
+        logger.info("Attaching AMQP exchange to channel", exchange=settings.exchange)
         # Make our exchange durable so it survives broker restarts
         self._exchange = await self._channel.declare_exchange(
-            settings.amqp_exchange, ExchangeType.TOPIC, durable=True
+            settings.exchange, ExchangeType.TOPIC, durable=True
         )
 
         # TODO: Create queues and binds in parallel?
@@ -266,7 +264,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
 
-            queue_name = f"{settings.amqp_queue_prefix}_{function_name}"
+            queue_name = f"{settings.queue_prefix}_{function_name}"
             log.info("Declaring unique message queue", queue_name=queue_name)
             # Make our queues durable so they survive broker restarts
             queue = await self._channel.declare_queue(queue_name, durable=True)
