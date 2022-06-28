@@ -6,6 +6,14 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+5.0.0 - 2022-06-28
+------------------
+
+[#50111] Allow overriding context
+[#50111] Implement Router
+[#50111] Take settings, router, and context explicitly
+[#50111] PublishMixin
+
 4.0.0 - 2022-06-24
 ------------------
 
