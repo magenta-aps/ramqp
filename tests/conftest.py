@@ -100,8 +100,8 @@ def amqp_test() -> Callable:
 
         amqp_system = AMQPSystem(
             settings=ConnectionSettings(
-                amqp_queue_prefix=queue_prefix,
-                amqp_exchange=test_id,
+                queue_prefix=queue_prefix,
+                exchange=test_id,
             ),
         )
         amqp_system.router.register(routing_key)(callback_wrapper)
@@ -160,8 +160,8 @@ def moamqp_test(
 
         amqp_system = MOAMQPSystem(
             settings=ConnectionSettings(
-                amqp_queue_prefix=queue_prefix,
-                amqp_exchange=test_id,
+                queue_prefix=queue_prefix,
+                exchange=test_id,
             ),
         )
         amqp_system.router.register(mo_routing_key)(callback_wrapper)
