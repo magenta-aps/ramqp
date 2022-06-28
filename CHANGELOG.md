@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+6.0.0 - 2022-06-28
+------------------
+
+[#50111] Remove 'AMQP_' prefix from connection settings
+
 5.0.0 - 2022-06-28
 ------------------
 
