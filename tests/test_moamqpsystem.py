@@ -12,13 +12,13 @@ from more_itertools import all_unique
 
 from .common import _test_context_manager
 from .common import _test_run_forever_worker
-from ramqp.mo_models import MOCallbackType
-from ramqp.mo_models import MORoutingKey
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import PayloadType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import ServiceType
-from ramqp.moqp import MOAMQPSystem
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo.models import MOCallbackType
+from ramqp.mo.models import MORoutingKey
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import PayloadType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 from ramqp.utils import CallbackType
 from ramqp.utils import function_to_name
 
@@ -32,8 +32,7 @@ def get_registry(moamqp_system: MOAMQPSystem) -> Dict[CallbackType, Set[str]]:
     Returns:
         The callback registry.
     """
-    # pylint: disable=protected-access
-    return moamqp_system._registry
+    return moamqp_system.router.registry
 
 
 def construct_adapter(
@@ -49,7 +48,7 @@ def construct_adapter(
         The callback registry.
     """
     # pylint: disable=protected-access
-    return moamqp_system._construct_adapter(callback)
+    return moamqp_system.router._construct_adapter(callback)
 
 
 async def callback_func1(_1: MORoutingKey, _2: PayloadType, **__: Any) -> None:
@@ -86,9 +85,9 @@ async def test_happy_path(moamqp_test: Callable) -> None:
     assert routing_key.request_type == RequestType.CREATE
 
 
-def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
+async def test_run_forever(moamqp_system: MOAMQPSystem) -> None:
     """Test that run_forever calls start, then stop."""
-    _test_run_forever_worker(moamqp_system)
+    await _test_run_forever_worker(moamqp_system)
 
 
 async def test_context_manager(moamqp_system: MOAMQPSystem) -> None:
@@ -121,7 +120,7 @@ def test_construct_adapter(moamqp_system: MOAMQPSystem) -> None:
     def get_adapter_map(
         moamqp_system: MOAMQPSystem,
     ) -> Dict[MOCallbackType, CallbackType]:
-        return moamqp_system._adapter_map  # pylint: disable=protected-access
+        return moamqp_system.router._adapter_map  # pylint: disable=protected-access
 
     assert get_adapter_map(moamqp_system) == {}
 
@@ -166,19 +165,19 @@ def test_register_multiple(moamqp_system: MOAMQPSystem) -> None:
     assert get_registry(moamqp_system) == {}
 
     # Test that registering our callback, adds the adapter to the registry
-    moamqp_system.register(*mo_routing_tuple1)(callback_func1)
+    moamqp_system.router.register(*mo_routing_tuple1)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1}}
 
     # Test that adding the same entry multiple times only adds once
-    moamqp_system.register(*mo_routing_tuple1)(callback_func1)
+    moamqp_system.router.register(*mo_routing_tuple1)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1}}
 
     # Test that adding the same callback with another key expands the set
-    moamqp_system.register(*mo_routing_tuple2)(callback_func1)
+    moamqp_system.router.register(*mo_routing_tuple2)(callback_func1)
     assert get_registry(moamqp_system) == {adapter1: {routing_key1, routing_key2}}
 
     # Test that adding an unrelated callback adds another entry
-    moamqp_system.register(*mo_routing_tuple1)(callback_func2)
+    moamqp_system.router.register(*mo_routing_tuple1)(callback_func2)
     assert get_registry(moamqp_system) == {
         adapter1: {routing_key1, routing_key2},
         adapter2: {routing_key1},

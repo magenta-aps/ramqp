@@ -62,21 +62,21 @@ async def test_register_metrics(amqp_system: AMQPSystem) -> None:
     assert get_callback_metric_labels() == set()
 
     # Register callback
-    amqp_system.register("test.routing.key")(callback_func1)
+    amqp_system.router.register("test.routing.key")(callback_func1)
 
     # Test that callback counter has gone up
     assert get_callback_metric_labels() == {("test.routing.key",)}
     assert get_callback_metric_value("test.routing.key") == 1.0
 
     # Register another callback
-    amqp_system.register("test.routing.key")(callback_func2)
+    amqp_system.router.register("test.routing.key")(callback_func2)
 
     # Test that callback counter has gone up
     assert get_callback_metric_labels() == {("test.routing.key",)}
     assert get_callback_metric_value("test.routing.key") == 2.0
 
     # Register our first function with another routing key
-    amqp_system.register("test.another.routing.key")(callback_func1)
+    amqp_system.router.register("test.another.routing.key")(callback_func1)
     assert get_callback_metric_labels() == {
         ("test.routing.key",),
         ("test.another.routing.key",),

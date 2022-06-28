@@ -1,16 +1,18 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=too-few-public-methods
 """This module contains the Abstract AMQPSystem."""
 import asyncio
 import json
 from abc import ABCMeta
+from asyncio import CancelledError
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
-from typing import Any
 from typing import Dict
+from typing import Generic
 from typing import Optional
 from typing import Set
 from typing import Type
@@ -55,51 +57,127 @@ def reconnect_callback(_: AbstractRobustConnection) -> None:
     reconnect_counter.inc()  # pragma: no cover
 
 
-async def _on_message(
-    callback: CallbackType, context: dict, message: IncomingMessage
-) -> None:
-    """AbstractAMQPSystem message handler.
+class AbstractRouter:
+    """Abstract base-class for Routers.
 
-    Handles logging, metrics, retrying and exception handling.
-
-    Args:
-        callback: The callback to call with the message.
-        context: Additional context from the AMQP system passed handlers.
-        message: The message to deliver to the callback.
-
-    Returns:
-        None
+    Shared code used by both Router and MORouter.
     """
-    assert message.routing_key is not None
-    routing_key = message.routing_key
-    function_name = function_to_name(callback)
-    log = logger.bind(function=function_name, routing_key=routing_key)
 
-    log.debug("Received message")
-    try:
-        with _handle_receive_metrics(routing_key, function_name):
-            # Requeue messages on exceptions, so they can be retried.
-            async with message.process(requeue=True):
-                await callback(message=message, context=context)
-    except Exception as exception:
-        log.exception("Exception during on_message()")
-        raise exception
+    def __init__(self) -> None:
+        self.registry: Dict[CallbackType, Set[str]] = {}
+
+    def _register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
+        """Get a decorator for registering callbacks.
+
+        Examples:
+            ```
+            address_create_decorator = router.register("EMPLOYEE.ADDRESS.CREATE")
+
+            @address_create_decorator
+            def callback1(message: IncomingMessage):
+                pass
+
+            @address_create_decorator
+            def callback2(message: IncomingMessage):
+                pass
+            ```
+            Or directly:
+            ```
+            @router.register("EMPLOYEE.ADDRESS.CREATE")
+            def callback1(message: IncomingMessage):
+                pass
+
+            @router.register("EMPLOYEE.ADDRESS.CREATE")
+            def callback2(message: IncomingMessage):
+                pass
+            ```
+
+        Args:
+            routing_key: The routing key to bind messages for.
+
+        Returns:
+            A decorator for registering a function to receive callbacks.
+        """
+        assert routing_key != ""
+
+        def decorator(function: CallbackType) -> CallbackType:
+            """Registers the given callback and routing key in the callback registry.
+
+            Args:
+                function: The callback to registry.
+
+            Returns:
+                The unmodified given function.
+            """
+            function_name = function_to_name(function)
+
+            log = logger.bind(routing_key=routing_key, function=function_name)
+            log.info("Register called")
+
+            callbacks_registered.labels(routing_key).inc()
+            self.registry.setdefault(function, set()).add(routing_key)
+            return function
+
+        return decorator
+
+
+class AbstractPublishMixin:
+    """Abstract base-class for Publish Mixins.
+
+    Shared code used by both PublishMixin and MOPublishMixin.
+    """
+
+    _exchange: Optional[AbstractExchange]
+
+    async def _publish_message(self, routing_key: str, payload: dict) -> None:
+        """Publish a message to the given routing key.
+
+        Args:
+            routing_key: The routing key to send the message to.
+            payload: The message payload.
+
+        Returns:
+            None
+        """
+        if self._exchange is None:
+            raise ValueError("Must call start() before publish message!")
+
+        with _handle_publish_metrics(routing_key):
+            message = Message(body=json.dumps(payload).encode("utf-8"))
+            await self._exchange.publish(routing_key=routing_key, message=message)
+
+
+TRouter = TypeVar("TRouter", bound=AbstractRouter)
 
 
 # pylint: disable=too-many-instance-attributes
-class AbstractAMQPSystem(AbstractAsyncContextManager):
+class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
     """Abstract base-class for AMQPSystems.
 
     Shared code used by both AMQPSystem and MOAMQPSystem.
     """
 
     __metaclass__ = ABCMeta
+    router_cls: Type[TRouter]
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self.settings = ConnectionSettings(*args, **kwargs)
-        self.context: dict = {}
+    def __init__(
+        self,
+        settings: Optional[ConnectionSettings] = None,
+        router: Optional[TRouter] = None,
+        context: Optional[dict] = None,
+    ) -> None:
+        if settings is None:
+            settings = ConnectionSettings()
+        self.settings = settings
 
-        self._registry: Dict[CallbackType, Set[str]] = {}
+        if router is None:
+            router = self.router_cls()
+        self.router: TRouter = router
+
+        # None check is important to avoid losing the reference to falsy passed object
+        if context is None:
+            context = {}
+        self.context = context
 
         self._connection: Optional[AbstractRobustConnection] = None
         self._channel: Optional[AbstractChannel] = None
@@ -144,6 +222,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         Returns:
             None
         """
+        logger.info("Starting AMQP system")
         settings = self.settings
 
         # We expect no active connections to be established
@@ -152,10 +231,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         assert self._exchange is None
 
         # We expect function_to_name to be unique for each callback
-        assert all_unique(map(function_to_name, self._registry.keys()))
+        assert all_unique(map(function_to_name, self.router.registry.keys()))
 
         # We expect amqp_queue_prefix to be set if any callbacks are registered
-        if self._registry:
+        if self.router.registry:
             assert settings.amqp_queue_prefix is not None
 
         logger.info(
@@ -183,7 +262,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
 
         # TODO: Create queues and binds in parallel?
         self._queues = {}
-        for callback, routing_keys in self._registry.items():
+        for callback, routing_keys in self.router.registry.items():
             function_name = function_to_name(callback)
             log = logger.bind(function=function_name)
 
@@ -194,7 +273,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
             self._queues[function_name] = queue
 
             log.info("Starting message listener")
-            await queue.consume(partial(_on_message, callback, self.context))
+            await queue.consume(partial(self._on_message, callback))
 
             log.info("Binding routing keys")
             for routing_key in routing_keys:
@@ -212,6 +291,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         Returns:
             None
         """
+        logger.info("Stopping AMQP system")
         if self._periodic_task is not None:
             self._periodic_task.cancel()
             self._periodic_task = None
@@ -219,10 +299,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         self._exchange = None
 
         if self._channel is not None:
-            await self._channel.close()
             self._channel = None
 
         if self._connection is not None:
+            logger.info("Closing AMQP connection")
             await self._connection.close()
             self._connection = None
 
@@ -252,97 +332,47 @@ class AbstractAMQPSystem(AbstractAsyncContextManager):
         await self.stop()
         return await super().__aexit__(__exc_type, __exc_value, __traceback)
 
-    def run_forever(self, *args: Any, **kwargs: str) -> None:
-        """Start the AMQPSystem and run it forever.
-
-        Args:
-            *args: Arguments are forwarded directly to ConnectionSettings.
-            **kwargs: Arguments are forwarded directly to ConnectionSettings.
+    async def run_forever(self) -> None:
+        """Start the AMQPSystem, if it isn't already, and run it forever.
 
         Returns:
             None
         """
-        loop = asyncio.get_event_loop()
-        # Setup everything
-        loop.run_until_complete(self.start(*args, **kwargs))
-        # Run forever listening to messages
-        loop.run_forever()
-        # Clean up everything
-        loop.run_until_complete(self.stop())
-        loop.close()
+        logger.info("Running forever")
+        if not self.started:
+            await self.start()
+        try:
+            # Wait until terminate
+            await asyncio.get_event_loop().create_future()
+        except CancelledError:
+            logger.info("Run cancelled")
 
-    def _register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
-        """Get a decorator for registering callbacks.
+    async def _on_message(
+        self, callback: CallbackType, message: IncomingMessage
+    ) -> None:
+        """Message handler.
 
-        Examples:
-            ```
-            address_create_decorator = amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
-
-            @address_create_decorator
-            def callback1(message: IncomingMessage):
-                pass
-
-            @address_create_decorator
-            def callback2(message: IncomingMessage):
-                pass
-            ```
-            Or directly:
-            ```
-            @amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
-            def callback1(message: IncomingMessage):
-                pass
-
-            @amqp_system.register("EMPLOYEE.ADDRESS.CREATE")
-            def callback2(message: IncomingMessage):
-                pass
-            ```
+        Handles logging, metrics, retrying and exception handling.
 
         Args:
-            routing_key: The routing key to bind messages for.
-
-        Returns:
-            A decorator for registering a function to receive callbacks.
-        """
-        assert routing_key != ""
-
-        def decorator(function: CallbackType) -> CallbackType:
-            """Registers the given callback and routing key in the callback registry.
-
-            Args:
-                function: The callback to registry.
-
-            Returns:
-                The unmodified given function.
-            """
-            function_name = function_to_name(function)
-
-            log = logger.bind(routing_key=routing_key, function=function_name)
-            log.info("Register called")
-
-            if self.started:
-                message = "Cannot register callback after run() has been called!"
-                log.error(message)
-                raise ValueError(message)
-
-            callbacks_registered.labels(routing_key).inc()
-            self._registry.setdefault(function, set()).add(routing_key)
-            return function
-
-        return decorator
-
-    async def _publish_message(self, routing_key: str, payload: dict) -> None:
-        """Publish a message to the given routing key.
-
-        Args:
-            routing_key: The routing key to send the message to.
-            payload: The message payload.
+            callback: The callback to call with the message.
+            message: The message to deliver to the callback.
 
         Returns:
             None
         """
-        if self._exchange is None:
-            raise ValueError("Must call start() before publish message!")
+        assert message.routing_key is not None
+        routing_key = message.routing_key
+        function_name = function_to_name(callback)
+        log = logger.bind(function=function_name, routing_key=routing_key)
 
-        with _handle_publish_metrics(routing_key):
-            message = Message(body=json.dumps(payload).encode("utf-8"))
-            await self._exchange.publish(routing_key=routing_key, message=message)
+        log.debug("Received message")
+        try:
+            with _handle_receive_metrics(routing_key, function_name):
+                # Requeue messages on exceptions, so they can be retried.
+                async with message.process(requeue=True):
+                    # TODO: Add retry metric
+                    await callback(message=message, context=self.context)
+        except Exception as exception:
+            log.exception("Exception during on_message()")
+            raise exception

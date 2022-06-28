@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=too-few-public-methods
 """This module contains the MO specific AMQPSystem."""
 from functools import wraps
 from typing import Any
@@ -13,25 +14,27 @@ from aio_pika import IncomingMessage
 from fastapi.encoders import jsonable_encoder
 from pydantic import parse_raw_as
 
-from .abstract_amqpsystem import AbstractAMQPSystem
-from .mo_models import MOCallbackType
-from .mo_models import MORoutingKey
-from .mo_models import ObjectType
-from .mo_models import PayloadType
-from .mo_models import RequestType
-from .mo_models import ServiceType
-from .utils import CallbackType
+from ..abstract import AbstractAMQPSystem
+from ..abstract import AbstractPublishMixin
+from ..abstract import AbstractRouter
+from ..mo.models import MOCallbackType
+from ..mo.models import MORoutingKey
+from ..mo.models import ObjectType
+from ..mo.models import PayloadType
+from ..mo.models import RequestType
+from ..mo.models import ServiceType
+from ..utils import CallbackType
 
 
-class MOAMQPSystem(AbstractAMQPSystem):
-    """MO specific AMQPSystem.
+class MORouter(AbstractRouter):
+    """MO specific Router.
 
-    Has specifically tailored `register` and `publish_message` methods.
-    Both of which utilize the MO AMQP routing-key structure and payload format.
+    Has specifically tailored `register` methods, which utilize the MO AMQP
+    routing-key structure and payload format.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self) -> None:
+        super().__init__()
         self._adapter_map: Dict[MOCallbackType, CallbackType] = {}
 
     def _construct_adapter(self, adaptee: MOCallbackType) -> CallbackType:
@@ -106,7 +109,7 @@ class MOAMQPSystem(AbstractAMQPSystem):
 
         Examples:
             ```
-            address_create_decorator = moamqp_system.register(
+            address_create_decorator = morouter.register(
                 ServiceType.EMPLOYEE,
                 ObjectType.ADDRESS,
                 RequestType.CREATE
@@ -122,7 +125,7 @@ class MOAMQPSystem(AbstractAMQPSystem):
             ```
             Or directly:
             ```
-            @moamqp_system.register(
+            @morouter.register(
                 ServiceType.EMPLOYEE,
                 ObjectType.ADDRESS,
                 RequestType.CREATE
@@ -152,6 +155,14 @@ class MOAMQPSystem(AbstractAMQPSystem):
             return function
 
         return decorator
+
+
+class MOPublishMixin(AbstractPublishMixin):
+    """MO specific PublishMixin.
+
+    Has a specifically tailored `publish_message` method, which utilize the MO AMQP
+    routing-key structure and payload format.
+    """
 
     @overload
     async def publish_message(
@@ -205,3 +216,9 @@ class MOAMQPSystem(AbstractAMQPSystem):
         routing_key = MORoutingKey.build(*args, **kwargs)
         payload_obj = jsonable_encoder(payload)
         await self._publish_message(str(routing_key), payload_obj)
+
+
+class MOAMQPSystem(AbstractAMQPSystem[MORouter], MOPublishMixin):
+    """MO specific AMQPSystem."""
+
+    router_cls = MORouter

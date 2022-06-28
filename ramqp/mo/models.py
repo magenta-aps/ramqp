@@ -20,7 +20,7 @@ from more_itertools import one
 from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 
-from .metrics import exception_mo_routing_counter
+from ..metrics import exception_mo_routing_counter
 
 
 class AutoLowerNameEnum(Enum):

@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 from typing import Callable
 from typing import Iterator
+from typing import Optional
 from uuid import uuid4
 
 import pytest
@@ -24,13 +25,16 @@ from structlog.testing import LogCapture
 
 from .common import random_string
 from ramqp import AMQPSystem
-from ramqp.mo_models import MOCallbackType
-from ramqp.mo_models import MORoutingKey
-from ramqp.mo_models import ObjectType
-from ramqp.mo_models import PayloadType
-from ramqp.mo_models import RequestType
-from ramqp.mo_models import ServiceType
-from ramqp.moqp import MOAMQPSystem
+from ramqp import Router
+from ramqp.config import ConnectionSettings
+from ramqp.mo import MOAMQPSystem
+from ramqp.mo import MORouter
+from ramqp.mo.models import MOCallbackType
+from ramqp.mo.models import MORoutingKey
+from ramqp.mo.models import ObjectType
+from ramqp.mo.models import PayloadType
+from ramqp.mo.models import RequestType
+from ramqp.mo.models import ServiceType
 
 
 @pytest.fixture
@@ -58,6 +62,18 @@ def moamqp_system() -> MOAMQPSystem:
 
 
 @pytest.fixture
+def amqp_router() -> Router:
+    """Pytest fixture to construct an Router."""
+    return Router()
+
+
+@pytest.fixture
+def moamqp_router() -> MORouter:
+    """Pytest fixture to construct an MORouter."""
+    return MORouter()
+
+
+@pytest.fixture
 def aio_pika_message() -> Message:
     """Pytest fixture to construct a aio_pika Message."""
     payload = {"key": "value"}
@@ -68,7 +84,9 @@ def aio_pika_message() -> Message:
 def amqp_test() -> Callable:
     """Return an integration-test callable."""
 
-    async def make_amqp_test(callback: Callable) -> AMQPSystem:
+    async def make_amqp_test(
+        callback: Callable, post_start: Optional[Callable[[AMQPSystem], None]] = None
+    ) -> AMQPSystem:
         """Setup an integration-test AMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
@@ -81,11 +99,15 @@ def amqp_test() -> Callable:
             event.set()
 
         amqp_system = AMQPSystem(
-            amqp_queue_prefix=queue_prefix,
-            amqp_exchange=test_id,
+            settings=ConnectionSettings(
+                amqp_queue_prefix=queue_prefix,
+                amqp_exchange=test_id,
+            ),
         )
-        amqp_system.register(routing_key)(callback_wrapper)  # type: ignore
+        amqp_system.router.register(routing_key)(callback_wrapper)
         async with amqp_system:
+            if post_start is not None:
+                post_start(amqp_system)
             await amqp_system.publish_message(routing_key, payload)
             await asyncio.wait_for(event.wait(), timeout=1)
         return amqp_system
@@ -123,7 +145,10 @@ def moamqp_test(
 ) -> Callable:
     """Return an integration-test callable."""
 
-    async def make_amqp_test(callback: MOCallbackType) -> None:
+    async def make_amqp_test(
+        callback: MOCallbackType,
+        post_start: Optional[Callable[[MOAMQPSystem], None]] = None,
+    ) -> None:
         """Setup an integration-test MOAMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
@@ -134,11 +159,15 @@ def moamqp_test(
             event.set()
 
         amqp_system = MOAMQPSystem(
-            amqp_queue_prefix=queue_prefix,
-            amqp_exchange=test_id,
+            settings=ConnectionSettings(
+                amqp_queue_prefix=queue_prefix,
+                amqp_exchange=test_id,
+            ),
         )
-        amqp_system.register(mo_routing_key)(callback_wrapper)
+        amqp_system.router.register(mo_routing_key)(callback_wrapper)
         async with amqp_system:
+            if post_start is not None:
+                post_start(amqp_system)
             await amqp_system.publish_message(mo_routing_key, mo_payload)
             await asyncio.wait_for(event.wait(), timeout=1)
 
