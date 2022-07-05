@@ -11,6 +11,7 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
+from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import Optional
@@ -66,7 +67,7 @@ class AbstractRouter:
     def __init__(self) -> None:
         self.registry: Dict[CallbackType, Set[str]] = {}
 
-    def _register(self, routing_key: str) -> Callable[[CallbackType], CallbackType]:
+    def _register(self, routing_key: Any) -> Callable[[CallbackType], CallbackType]:
         """Get a decorator for registering callbacks.
 
         Examples:
@@ -98,6 +99,8 @@ class AbstractRouter:
         Returns:
             A decorator for registering a function to receive callbacks.
         """
+        # Allow using any custom object as routing key as long as it implements __str__
+        routing_key = str(routing_key)
         assert routing_key != ""
 
         def decorator(function: CallbackType) -> CallbackType:
@@ -129,7 +132,7 @@ class AbstractPublishMixin:
 
     _exchange: Optional[AbstractExchange]
 
-    async def _publish_message(self, routing_key: str, payload: dict) -> None:
+    async def _publish_message(self, routing_key: Any, payload: dict) -> None:
         """Publish a message to the given routing key.
 
         Args:
@@ -142,6 +145,8 @@ class AbstractPublishMixin:
         if self._exchange is None:
             raise ValueError("Must call start() before publish message!")
 
+        # Allow using any custom object as routing key as long as it implements __str__
+        routing_key = str(routing_key)
         with _handle_publish_metrics(routing_key):
             message = Message(body=json.dumps(payload).encode("utf-8"))
             await self._exchange.publish(routing_key=routing_key, message=message)
