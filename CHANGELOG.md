@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+6.1.0 - 2022-07-05
+------------------
+
+[#49162] Support Any object as routing key
+
 6.0.0 - 2022-06-28
 ------------------
 
