@@ -245,7 +245,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
 
         logger.info("Creating AMQP channel")
         self._channel = cast(AbstractRobustChannel, await self._connection.channel())
-        await self._channel.set_qos(prefetch_count=10)
+        await self._channel.set_qos(prefetch_count=settings.prefetch_count)
         _setup_channel_metrics(self._channel)
 
         logger.info("Attaching AMQP exchange to channel", exchange=settings.exchange)

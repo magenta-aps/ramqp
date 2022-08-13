@@ -40,6 +40,9 @@ class ConnectionSettings(BaseSettings):
     # consistent across program restarts. The program name is a good candidate.
     queue_prefix: Optional[str]
 
+    # Maximum number of messages to fetch and handle in parallel.
+    prefetch_count: int = 10
+
     @root_validator(pre=True)
     def url_from_fields(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Construct AMQP URI from individual fields if one is not set explicitly"""
