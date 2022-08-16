@@ -358,7 +358,11 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         assert message.routing_key is not None
         routing_key = message.routing_key
         function_name = function_to_name(callback)
-        log = logger.bind(function=function_name, routing_key=routing_key)
+        log = logger.bind(
+            function=function_name,
+            routing_key=routing_key,
+            message_id=message.message_id,
+        )
 
         log.debug("Received message")
         try:
