@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+6.3.0 - 2022-08-16
+------------------
+
+[#48869] Made prefetch_count configurable
+
 6.2.0 - 2022-08-16
 ------------------
 
