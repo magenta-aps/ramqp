@@ -12,6 +12,7 @@ from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import Generic
 from typing import Optional
@@ -24,18 +25,19 @@ from aio_pika import connect_robust
 from aio_pika import ExchangeType
 from aio_pika import IncomingMessage
 from aio_pika import Message
-from aio_pika.abc import AbstractChannel
 from aio_pika.abc import AbstractExchange
 from aio_pika.abc import AbstractQueue
+from aio_pika.abc import AbstractRobustChannel
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
 from .config import ConnectionSettings
 from .metrics import _handle_publish_metrics
 from .metrics import _handle_receive_metrics
+from .metrics import _setup_channel_metrics
+from .metrics import _setup_connection_metrics
 from .metrics import _setup_periodic_metrics
 from .metrics import callbacks_registered
-from .metrics import reconnect_counter
 from .metrics import routes_bound
 from .utils import CallbackType
 from .utils import function_to_name
@@ -44,18 +46,6 @@ from .utils import function_to_name
 TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
 
 logger = structlog.get_logger()
-
-
-def reconnect_callback(_: AbstractRobustConnection) -> None:
-    """Reconnect callback to update reconnect counter metric.
-
-    Args:
-        Unused connection
-
-    Returns:
-        None
-    """
-    reconnect_counter.inc()  # pragma: no cover
 
 
 class AbstractRouter:
@@ -185,7 +175,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         self.context = context
 
         self._connection: Optional[AbstractRobustConnection] = None
-        self._channel: Optional[AbstractChannel] = None
+        self._channel: Optional[AbstractRobustChannel] = None
         self._exchange: Optional[AbstractExchange] = None
         self._queues: Dict[str, AbstractQueue] = {}
 
@@ -251,11 +241,12 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             path=settings.url.path,
         )
         self._connection = await connect_robust(settings.url)
-        self._connection.reconnect_callbacks.add(reconnect_callback)
+        _setup_connection_metrics(self._connection)
 
         logger.info("Creating AMQP channel")
-        self._channel = await self._connection.channel()
+        self._channel = cast(AbstractRobustChannel, await self._connection.channel())
         await self._channel.set_qos(prefetch_count=10)
+        _setup_channel_metrics(self._channel)
 
         logger.info("Attaching AMQP exchange to channel", exchange=settings.exchange)
         # Make our exchange durable so it survives broker restarts
