@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+6.2.0 - 2022-08-16
+------------------
+
+[#46148] Introduce more connection event metrics
+
 6.1.0 - 2022-07-05
 ------------------
 
