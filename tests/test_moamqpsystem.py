@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """This module tests the MOAMQPSystem."""
+from asyncio import Event
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -12,6 +13,8 @@ from more_itertools import all_unique
 
 from .common import _test_context_manager
 from .common import _test_run_forever_worker
+from .common import random_string
+from ramqp.config import ConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo.models import MOCallbackType
 from ramqp.mo.models import MORoutingKey
@@ -185,3 +188,48 @@ def test_register_multiple(moamqp_system: MOAMQPSystem) -> None:
 
     # Test that all functions in the registry have unique names
     assert all_unique(map(function_to_name, get_registry(moamqp_system).keys()))
+
+
+@pytest.mark.integrationtest
+async def test_handler_exclusivity(
+    mo_payload: PayloadType, mo_routing_key: MORoutingKey
+) -> None:
+    """Test that messages are handled exclusively."""
+    # Prepare handlers
+    num_calls = 0
+    set_event = Event()  # allows us to detect call
+    wait_event = Event()  # allows us to block completion
+
+    async def callback(*_: Any, **__: Any) -> None:
+        nonlocal num_calls
+        num_calls += 1
+        set_event.set()
+        await wait_event.wait()
+
+    # Setup MO AMQP system
+    test_id = random_string()
+    queue_prefix = f"test_{test_id}"
+    amqp_system = MOAMQPSystem(
+        settings=ConnectionSettings(
+            queue_prefix=queue_prefix,
+            exchange=test_id,
+        ),
+    )
+    amqp_system.router.register(mo_routing_key)(callback)
+
+    async with amqp_system:
+        # Publish message twice
+        await amqp_system.publish_message(mo_routing_key, mo_payload)
+        await amqp_system.publish_message(mo_routing_key, mo_payload)
+
+        # Wait for a handler to receive the call
+        await set_event.wait()
+        # and assert that only one did
+        assert num_calls == 1
+
+        # Allow that handler to finish
+        set_event.clear()
+        wait_event.set()
+        # and wait for the second one to receive the call
+        await set_event.wait()
+        assert num_calls == 2

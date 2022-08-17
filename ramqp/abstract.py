@@ -83,6 +83,23 @@ class AbstractRouter:
                 pass
             ```
 
+        Note that, unlike the MOAMQPSystem where exclusive message handling is the
+        default, semantically identical messages may be handled concurrently due to the
+        parallelism provided by the `prefetch_count` setting. This can lead to race
+        conditions in the application if multiple callbacks read and write state in an
+        intertwined fashion. Unfortunately, because the semantics of the payload is
+        unknown, exclusivity cannot automatically be provided. Instead, it is
+        recommended to wrap all sensitive functions manually::
+
+            @router.register("my.routing.key")
+            async def callback1(message: IncomingMessage, **kwargs: Any):
+                payload = parse_obj_as(Payload, message)
+                await handler(payload, **kwargs)
+
+            @handle_exclusively(key=lambda payload, **kwargs: (payload.id, payload.foo))
+            async def handler(payload: Payload, **kwargs):
+                pass
+
         Args:
             routing_key: The routing key to bind messages for.
 
