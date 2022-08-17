@@ -39,7 +39,7 @@ def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
     Examples:
         Simple usage::
 
-            @handle_exclusively(key=lambda **kwargs: (kwargs["x"], kwargs["y"]))
+            @handle_exclusively(key=lambda x, y, z: x, y)
             async def f(x, y, z):
                 pass
 
@@ -68,7 +68,7 @@ def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
     def wrapper(coro: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(coro)
         async def wrapped(*args: Any, **kwargs: Any) -> T:
-            async with named_lock(key=key(**kwargs)):
+            async with named_lock(key=key(*args, **kwargs)):
                 return await coro(*args, **kwargs)
 
         return wrapped
