@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+6.4.1 - 2022-08-17
+------------------
+
+[#51802] Pass `*args` to handle_exclusively key function
+
 6.4.0 - 2022-08-17
 ------------------
 

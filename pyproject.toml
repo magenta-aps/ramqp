@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ramqp"
-version = "6.4.0"
+version = "6.4.1"
 description = "Rammearkitektur AMQP library (aio_pika wrapper)"
 authors = ["Magenta ApS <info@magenta.dk>"]
 license = "MPL-2.0"
