@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+6.4.0 - 2022-08-17
+------------------
+
+[#51802] Add handle_exclusively utility function to avoid race conditions
+
 6.3.0 - 2022-08-16
 ------------------
 
