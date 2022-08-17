@@ -24,6 +24,7 @@ from ..mo.models import PayloadType
 from ..mo.models import RequestType
 from ..mo.models import ServiceType
 from ..utils import CallbackType
+from ..utils import handle_exclusively
 
 
 class MORouter(AbstractRouter):
@@ -56,6 +57,11 @@ class MORouter(AbstractRouter):
         if adaptee in self._adapter_map:
             return self._adapter_map[adaptee]
 
+        def mo_payload_exclusivity_key(payload: PayloadType, **_: Any) -> tuple:
+            return payload.uuid, payload.object_uuid
+
+        exclusive_handler = handle_exclusively(key=mo_payload_exclusivity_key)
+
         @wraps(adaptee)
         async def adapter(message: IncomingMessage, context: dict) -> None:
             """Adapter function mapping MOCallbackType to CallbackType.
@@ -73,7 +79,8 @@ class MORouter(AbstractRouter):
             assert message.routing_key is not None
             mo_routing_key = MORoutingKey.from_routing_key(message.routing_key)
             payload = parse_raw_as(PayloadType, message.body)
-            await adaptee(
+            exclusive_adaptee = exclusive_handler(adaptee)
+            await exclusive_adaptee(
                 mo_routing_key=mo_routing_key, payload=payload, context=context
             )
 
@@ -138,6 +145,10 @@ class MORouter(AbstractRouter):
             ) -> None:
                 pass
             ```
+
+        Note that messages for each callback are always handled exclusively to avoid
+        potential race conditions in the application. This means that multiple messages
+        for the same MO PayloadType uuid/object_uuid cannot be handled concurrently.
 
         Args:
             service_type: The service type to bind messages for.
