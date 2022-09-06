@@ -37,6 +37,7 @@ Pre-commit:
 
 Test:
   extends: .pytest
+  image: python:3.8
   variables:
     PYTEST_COV_MODULE: ramqp
     PYTEST_EXTRA_FLAGS: -m unittest
@@ -46,6 +47,7 @@ Test:
 
 Integration-test:
   extends: .pytest
+  image: python:3.8
   services:
     - name: rabbitmq:3
       alias: rabbitmq
