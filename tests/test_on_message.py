@@ -2,13 +2,18 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """This module tests the AMQPSystem.on_message handler."""
+import asyncio
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Type
 
 import pytest
 from aio_pika import IncomingMessage
 from more_itertools import one
+
+from ramqp.utils import RejectMessage
+from ramqp.utils import RequeueMessage
 
 
 @pytest.mark.integrationtest
@@ -25,7 +30,17 @@ async def test_happy_path(amqp_test: Callable) -> None:
 
 
 @pytest.mark.integrationtest
-async def test_callback_retrying(amqp_test: Callable) -> None:
+@pytest.mark.parametrize(
+    "exception,count",
+    [
+        (ValueError, 5),
+        (RequeueMessage, 5),
+        (RejectMessage, 1),
+    ],
+)
+async def test_callback_retrying_and_rejection(
+    amqp_test: Callable, exception: Type[Exception], count: int
+) -> None:
     """Test that messages are resend when an exception occur."""
     params: Dict[str, Any] = {"call_count": 0, "message_ids": set()}
 
@@ -33,10 +48,14 @@ async def test_callback_retrying(amqp_test: Callable) -> None:
         params["message_ids"].add(message.message_id)
         params["call_count"] += 1
         if params["call_count"] < 5:
-            raise ValueError()
+            raise exception()
 
-    await amqp_test(callback)
+    # Process at most 5 messages, if less we time out, which is fine
+    try:
+        await amqp_test(callback, num_messages=5)
+    except asyncio.exceptions.TimeoutError:
+        pass
 
-    assert params["call_count"] == 5
+    assert params["call_count"] == count
     message_id = one(params["message_ids"])
     assert isinstance(message_id, str)
