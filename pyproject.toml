@@ -1,9 +1,15 @@
 [tool.poetry]
 name = "ramqp"
-version = "6.4.1"
+version = "0.0.0"  # Set by CI during release
 description = "Rammearkitektur AMQP library (aio_pika wrapper)"
 authors = ["Magenta ApS <info@magenta.dk>"]
 license = "MPL-2.0"
+readme = "README.md"
+homepage = "https://magenta.dk/"
+repository = "https://git.magenta.dk/rammearkitektur/ramqp"
+keywords = ["os2mo", "amqp"]
+packages = [ { include = "ramqp" } ]
+include = ["ramqp/py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
