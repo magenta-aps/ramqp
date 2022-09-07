@@ -20,6 +20,7 @@ include:
 
 workflow:
   rules:
+    - if: $CI_MERGE_REQUEST_IID
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH
 
@@ -40,6 +41,9 @@ Test:
     PYTEST_COV_MODULE: ramqp
     PYTEST_EXTRA_FLAGS: "-m unittest"
 
+    POETRY_VIRTUALENVS_CREATE: "true"
+    POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
 Integration-test:
   extends: .pytest
   services:
@@ -50,6 +54,9 @@ Integration-test:
     PYTEST_EXTRA_FLAGS: "-m integrationtest"
 
     AMQP_URL: "amqp://guest:guest@rabbitmq:5672"
+
+    POETRY_VIRTUALENVS_CREATE: "true"
+    POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
 Export Integration-test coverage:
   extends: .export_coverage
