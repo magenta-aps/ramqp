@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 branches:
 - master
+tagFormat: "${version}"
 plugins:
 - "@semantic-release/commit-analyzer"
 - "@semantic-release/release-notes-generator"
