@@ -85,18 +85,22 @@ def amqp_test() -> Callable:
     """Return an integration-test callable."""
 
     async def make_amqp_test(
-        callback: Callable, post_start: Optional[Callable[[AMQPSystem], None]] = None
+        callback: Callable,
+        post_start: Optional[Callable[[AMQPSystem], None]] = None,
+        num_messages: int = 1,
     ) -> AMQPSystem:
         """Setup an integration-test AMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
         routing_key = "test.routing.key"
         payload = {"value": test_id}
-        event = asyncio.Event()
+        message_blocker = asyncio.Semaphore(0)
 
         async def callback_wrapper(*args: Any, **kwargs: Any) -> None:
-            await callback(*args, **kwargs)
-            event.set()
+            try:
+                await callback(*args, **kwargs)
+            finally:
+                message_blocker.release()
 
         amqp_system = AMQPSystem(
             settings=ConnectionSettings(
@@ -109,7 +113,8 @@ def amqp_test() -> Callable:
             if post_start is not None:
                 post_start(amqp_system)
             await amqp_system.publish_message(routing_key, payload)
-            await asyncio.wait_for(event.wait(), timeout=1)
+            tasks = [message_blocker.acquire() for _ in range(num_messages)]
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=1)
         return amqp_system
 
     return make_amqp_test
@@ -148,15 +153,18 @@ def moamqp_test(
     async def make_amqp_test(
         callback: MOCallbackType,
         post_start: Optional[Callable[[MOAMQPSystem], None]] = None,
+        num_messages: int = 1,
     ) -> None:
         """Setup an integration-test MOAMQPSystem, send a message to the callback."""
         test_id = random_string()
         queue_prefix = f"test_{test_id}"
-        event = asyncio.Event()
+        message_blocker = asyncio.Semaphore(0)
 
         async def callback_wrapper(*args: Any, **kwargs: Any) -> None:
-            await callback(*args, **kwargs)  # type: ignore
-            event.set()
+            try:
+                await callback(*args, **kwargs)  # type: ignore
+            finally:
+                message_blocker.release()
 
         amqp_system = MOAMQPSystem(
             settings=ConnectionSettings(
@@ -169,7 +177,8 @@ def moamqp_test(
             if post_start is not None:
                 post_start(amqp_system)
             await amqp_system.publish_message(mo_routing_key, mo_payload)
-            await asyncio.wait_for(event.wait(), timeout=1)
+            tasks = [message_blocker.acquire() for _ in range(num_messages)]
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=1)
 
     return make_amqp_test
 

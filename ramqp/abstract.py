@@ -41,6 +41,8 @@ from .metrics import callbacks_registered
 from .metrics import routes_bound
 from .utils import CallbackType
 from .utils import function_to_name
+from .utils import RejectMessage
+from .utils import RequeueMessage
 
 # Workaround until Self Types in Python 3.11 (PEP673)
 TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
@@ -385,9 +387,19 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         try:
             with _handle_receive_metrics(routing_key, function_name):
                 # Requeue messages on exceptions, so they can be retried.
-                async with message.process(requeue=True):
-                    # TODO: Add retry metric
-                    await callback(message=message, context=self.context)
+                async with message.process():
+                    try:
+                        # TODO: Add retry metric
+                        await callback(message=message, context=self.context)
+                    except RejectMessage:
+                        await message.reject(requeue=False)
+                        log.info("Rejected message")
+                    except RequeueMessage:
+                        await message.reject(requeue=True)
+                        log.info("Requested requeueing of message")
+                    except Exception as exception:
+                        await message.reject(requeue=True)
+                        raise exception
         except Exception as exception:
             log.exception("Exception during on_message()")
             raise exception

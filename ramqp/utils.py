@@ -74,3 +74,11 @@ def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
         return wrapped
 
     return wrapper
+
+
+class RejectMessage(Exception):
+    """Raise to reject a message, turning it into a dead letter."""
+
+
+class RequeueMessage(Exception):
+    """Raise to requeue a message for later redelivery."""
