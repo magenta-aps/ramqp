@@ -15,6 +15,7 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import Generic
+from typing import Mapping
 from typing import Optional
 from typing import Set
 from typing import Type
@@ -178,7 +179,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         self,
         settings: Optional[ConnectionSettings] = None,
         router: Optional[TRouter] = None,
-        context: Optional[dict] = None,
+        context: Optional[Mapping] = None,
     ) -> None:
         if settings is None:
             settings = ConnectionSettings()
