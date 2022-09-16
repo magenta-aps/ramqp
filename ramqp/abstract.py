@@ -388,7 +388,7 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         try:
             with _handle_receive_metrics(routing_key, function_name):
                 # Requeue messages on exceptions, so they can be retried.
-                async with message.process():
+                async with message.process(ignore_processed=True):
                     try:
                         # TODO: Add retry metric
                         await callback(message=message, context=self.context)
