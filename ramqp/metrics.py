@@ -185,7 +185,7 @@ def _setup_periodic_metrics(queues: Dict[str, AbstractQueue]) -> asyncio.Task:
             last_loop_periodic.set(loop.time())
             for function_name, queue in queues.items():
                 backlog_count.labels(function_name).set(
-                    queue.declaration_result.message_count
+                    queue.declaration_result.message_count or 0
                 )
             await asyncio.sleep(1)
 
