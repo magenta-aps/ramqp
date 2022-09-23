@@ -59,11 +59,13 @@ def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
     async def named_lock(key: Hashable) -> AsyncGenerator[None, None]:
         lock = locks[key]
         async with lock:
-            yield
-            # Garbage collect lock if no others are waiting to acquire.
-            # This MUST be done before we release the lock.
-            if not lock.statistics().tasks_waiting:
-                del locks[key]
+            try:
+                yield
+            finally:
+                # Garbage collect lock if no others are waiting to acquire.
+                # This MUST be done before we release the lock.
+                if not lock.statistics().tasks_waiting:
+                    del locks[key]
 
     def wrapper(coro: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(coro)
