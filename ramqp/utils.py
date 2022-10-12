@@ -101,6 +101,7 @@ async def sleep_on_error(delay: int = 30) -> AsyncGenerator:
         yield
     except Exception:  # pylint: disable=broad-except
         await asyncio.sleep(delay)
+        raise
 
 
 class RejectMessage(Exception):
