@@ -6,6 +6,7 @@ import asyncio
 from asyncio import Event
 from typing import Any
 
+import pytest
 from pytest import MonkeyPatch
 
 from ramqp.utils import sleep_on_error
@@ -16,7 +17,7 @@ async def test_sleep_on_error(monkeypatch: MonkeyPatch) -> None:
 
     @sleep_on_error()
     async def f() -> None:
-        raise ValueError
+        raise ValueError("no thanks")
 
     sleep_event = Event()
 
@@ -25,7 +26,8 @@ async def test_sleep_on_error(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-    await f()
+    with pytest.raises(ValueError, match="no thanks"):
+        await f()
     assert sleep_event.is_set()
 
 
