@@ -8,6 +8,7 @@ stages:
   - release
 
 variables:
+  POETRY_VERSION: 1.3.2
   PRECOMMIT_USE_POETRY: "true"
 
 # Conditions
