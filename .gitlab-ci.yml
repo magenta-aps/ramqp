@@ -1,7 +1,12 @@
 # SPDX-FileCopyrightText: 2022 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
 
+default:
+  # All jobs are interruptible by default
+  interruptible: true
+
 stages:
+  - sync
   - lint
   - test
   - coverage
@@ -32,17 +37,12 @@ workflow:
 
 include:
   - project: labs/salt-automation
-    ref: master
-    file: gitlab-ci-templates/common/conventional-commits.v1.yml
-  - project: labs/salt-automation
-    ref: master
-    file: /gitlab-ci-templates/common/pre-commit.v1.yml
-  - project: labs/salt-automation
-    ref: master
-    file: gitlab-ci-templates/python/pytest-meta.v1.yml
-  - project: labs/salt-automation
-    ref: master
-    file: gitlab-ci-templates/common/rules.v1.yml
+    file:
+      - gitlab-ci-templates/common/no-interrupt.v1.yml
+      - gitlab-ci-templates/common/conventional-commits.v1.yml
+      - gitlab-ci-templates/common/pre-commit.v1.yml
+      - gitlab-ci-templates/python/pytest-meta.v1.yml
+      - gitlab-ci-templates/common/rules.v1.yml
 
 Test:
   extends: .pytest
