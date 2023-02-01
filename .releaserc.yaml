@@ -2,13 +2,21 @@
 # SPDX-FileCopyrightText: 2022 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
 branches:
-- master
+  - master
 tagFormat: "${version}"
 plugins:
-- "@semantic-release/commit-analyzer"
-- "@semantic-release/release-notes-generator"
-- "@semantic-release/changelog"
-- - "@semantic-release/gitlab"
-  - assets:
-    - path: CHANGELOG.md
-      label: Changelog
+  - - "@semantic-release/commit-analyzer"
+    - preset: angular
+      releaseRules:
+        - type: chore
+          scope: deps-dev
+          release: patch
+        - type: chore
+          scope: deps
+          release: patch
+  - "@semantic-release/release-notes-generator"
+  - "@semantic-release/changelog"
+  - - "@semantic-release/gitlab"
+    - assets:
+        - path: CHANGELOG.md
+          label: Changelog
