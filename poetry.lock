@@ -1,21 +1,18 @@
 [[package]]
 name = "aio-pika"
-version = "8.3.0"
-description = "Wrapper for the aiormq for asyncio and humans."
+version = "9.0.1"
+description = "Wrapper around the aiormq for asyncio and humans"
 category = "main"
 optional = false
-python-versions = ">3.6, <4"
+python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-aiormq = ">=6.6.3,<6.7.0"
+aiormq = ">=6.7.1,<6.8.0"
 yarl = "*"
-
-[package.extras]
-develop = ["aiomisc (>=16.0,<17.0)", "coverage (!=4.3)", "coveralls", "nox", "pylava", "pytest", "pytest-cov", "shortuuid", "sphinx", "sphinx-autobuild", "timeout-decorator", "tox (>=2.4)"]
 
 [[package]]
 name = "aiormq"
-version = "6.6.4"
+version = "6.7.1"
 description = "Pure python AMQP asynchronous client library"
 category = "main"
 optional = false
@@ -601,16 +598,16 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "174d0bde57cf4d48bc70076fe2a67639b898b779a7ecfff9020772b1053fb8e6"
+content-hash = "fb35f53d34c8ebeec16039f9ef4487fe3e1ba11889ef22236c8bd28c6ac3b3c4"
 
 [metadata.files]
 aio-pika = [
-    {file = "aio-pika-8.3.0.tar.gz", hash = "sha256:c0e2601eda6a1097fe1d33c5f9965a86a27b328ac48914d20c23f675b3ab1797"},
-    {file = "aio_pika-8.3.0-py3-none-any.whl", hash = "sha256:36c4742449f1cbcb83165b3733b090cf88f3d2f7f027225eedb8c7f300b05dde"},
+    {file = "aio_pika-9.0.1-py3-none-any.whl", hash = "sha256:b1ecc6ba5d7df11c1b5017a452c15fcfb136846630eff5e4570f108db1e3805a"},
+    {file = "aio_pika-9.0.1.tar.gz", hash = "sha256:3d145ad4b7cfba9a97a1be8b0b38a37909e139c2defb2b9a02570a17e3c50d2b"},
 ]
 aiormq = [
-    {file = "aiormq-6.6.4-py3-none-any.whl", hash = "sha256:9fb93dc871eb9c45a410e29669624790c01b70d27f20d512a22b146c411440ea"},
-    {file = "aiormq-6.6.4.tar.gz", hash = "sha256:95835a4db6117263305d450f838ccdc3eabd427c0deb32fd617769ad4c989e98"},
+    {file = "aiormq-6.7.1-py3-none-any.whl", hash = "sha256:c6de232c34c0be051a0251684fa480cb5ee498e9f536f244fba0668d06a7c8ed"},
+    {file = "aiormq-6.7.1.tar.gz", hash = "sha256:f0328da19ba47b9f8bcdb3eb80faa20a6acc195ba721f1ccc008754ddd0abaee"},
 ]
 anyio = [
     {file = "anyio-3.6.2-py3-none-any.whl", hash = "sha256:fbbe32bd270d2a2ef3ed1c5d45041250284e31fc0a4df4a5a6071842051a51e3"},
