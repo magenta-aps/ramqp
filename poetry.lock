@@ -445,15 +445,15 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "ra-utils"
-version = "1.9.0"
+version = "1.11.3"
 description = "Utilities for OS2mo/LoRa"
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 
 [package.dependencies]
-more-itertools = ">=9.0.0,<10.0.0"
-structlog = ">=22.3.0,<23.0.0"
+more-itertools = "9.0.0"
+structlog = "22.3.0"
 tqdm = ">=4.64.1,<5.0.0"
 
 [package.extras]
@@ -970,8 +970,8 @@ pyyaml = [
     {file = "PyYAML-6.0.tar.gz", hash = "sha256:68fb519c14306fec9720a2a5b45bc9f0c8d1b9c72adf45c37baedfcd949c35a2"},
 ]
 ra-utils = [
-    {file = "ra_utils-1.9.0-py3-none-any.whl", hash = "sha256:b13569d6a743781271753b4ade9e14b18e5a126fa4528bca5cc0d76dbeeb583c"},
-    {file = "ra_utils-1.9.0.tar.gz", hash = "sha256:4869e9cf1c6181c792fe82831b61e00db59669642ce38c52b1d2722d844047de"},
+    {file = "ra_utils-1.11.3-py3-none-any.whl", hash = "sha256:0e785291cf41a53c4102597ea17084a502d69643efd89cee68df1fff7daf1e60"},
+    {file = "ra_utils-1.11.3.tar.gz", hash = "sha256:3a5c0cf5f3a39998838392058ef571ca3b067aa6c794ca213b02c306dcd3b027"},
 ]
 reorder-python-imports = [
     {file = "reorder_python_imports-3.9.0-py2.py3-none-any.whl", hash = "sha256:3f9c16e8781f54c944756d0d1eb34a8c863554f7a4eb3693f574fe19b1a29b56"},
