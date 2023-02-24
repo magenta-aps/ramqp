@@ -215,6 +215,10 @@ class MORoutingKey:
     def build(cls, *args: Any, **kwargs: Any) -> "MORoutingKey":
         """Attempt to construct a MORoutingKey.
 
+        Args:
+            args: Unspecified arguments
+            kwargs: Unspecified arguments
+
         Returns:
             The constructed MORoutingKey.
         """
@@ -241,9 +245,6 @@ class MORoutingKey:
 
     def __str__(self) -> str:
         """Convert this object to a routing_key.
-
-        Args:
-            self: The object to be converted.
 
         Returns:
             The equivalent routing key.

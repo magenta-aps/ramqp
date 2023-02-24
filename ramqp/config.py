@@ -12,6 +12,7 @@ from pydantic import root_validator
 from pydantic import SecretStr
 
 
+# TODO: Consider using ra-utils structured URL
 class ConnectionSettings(BaseSettings):
     """Settings for the AMQP connection.
 
@@ -43,7 +44,14 @@ class ConnectionSettings(BaseSettings):
 
     @root_validator(pre=True)
     def url_from_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Construct AMQP URI from individual fields if one is not set explicitly"""
+        """Construct AMQP URI from individual fields if one is not set explicitly.
+
+        Args:
+            values: Pydantic parsed values.
+
+        Returns:
+            'values' but with the guarantee that 'url' is set.
+        """
         # Use full AMQP connection URI if set
         if values.get("url"):
             return values

@@ -42,6 +42,7 @@ from .utils import RejectMessage
 from .utils import RequeueMessage
 
 # Workaround until Self Types in Python 3.11 (PEP673)
+# pylint: disable=invalid-name
 TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
 
 logger = structlog.get_logger()
@@ -145,8 +146,8 @@ class AbstractPublishMixin:
             routing_key: The routing key to send the message to.
             payload: The message payload.
 
-        Returns:
-            None
+        Raises:
+            ValueError: If the AMQPSystem has not been started yet.
         """
         if self._exchange is None:
             raise ValueError("Must call start() before publish message!")
@@ -158,6 +159,7 @@ class AbstractPublishMixin:
             await self._exchange.publish(routing_key=routing_key, message=message)
 
 
+# pylint: disable=invalid-name
 TRouter = TypeVar("TRouter", bound=AbstractRouter)
 
 
@@ -229,9 +231,6 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         * Creates durable queues for each callback in the callback registry.
         * Binds routes to the queues according to the callback registry.
         * Setups up periodic metrics.
-
-        Returns:
-            None
         """
         logger.info("Starting AMQP system")
         settings = self.settings
@@ -297,9 +296,6 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         """Stop the AMQPSystem.
 
         This method disconnects from the AMQP server, and stops the periodic metrics.
-
-        Returns:
-            None
         """
         logger.info("Stopping AMQP system")
         if self._periodic_task is not None:
@@ -319,7 +315,8 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
     async def __aenter__(self: TAMQPSystem) -> TAMQPSystem:
         """Start the AMQPSystem.
 
-        Returns: Self.
+        Returns:
+            Self
         """
         await self.start()
         return await super().__aenter__()  # type: ignore[no-any-return]
@@ -337,17 +334,14 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             __exc_value: AbstractAsyncContextManager argument.
             __traceback: AbstractAsyncContextManager argument.
 
-        Returns: None.
+        Returns:
+            None
         """
         await self.stop()
         return await super().__aexit__(__exc_type, __exc_value, __traceback)
 
     async def run_forever(self) -> None:
-        """Start the AMQPSystem, if it isn't already, and run it forever.
-
-        Returns:
-            None
-        """
+        """Start the AMQPSystem, if it isn't already, and run it forever."""
         logger.info("Running forever")
         if not self.started:
             await self.start()
@@ -368,8 +362,8 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             callback: The callback to call with the message.
             message: The message to deliver to the callback.
 
-        Returns:
-            None
+        Raises:
+            Exception: If any exception occurs during the callback.
         """
         assert message.routing_key is not None
         routing_key = message.routing_key
