@@ -4,7 +4,6 @@
 # pylint: disable=redefined-outer-name,not-callable
 """This module contains pytest specific code, fixtures and helpers."""
 import asyncio
-import json
 from collections.abc import Callable
 from collections.abc import Iterator
 from datetime import datetime
@@ -13,13 +12,10 @@ from uuid import uuid4
 
 import pytest
 import structlog
-from aio_pika import DeliveryMode
 from aio_pika import IncomingMessage
 from aio_pika import Message
 from aiormq.abc import DeliveredMessage
-from pamqp.commands import Basic
 from pydantic import parse_obj_as
-from ra_utils.attrdict import attrdict
 from structlog.testing import LogCapture
 
 from .common import random_string
@@ -34,6 +30,10 @@ from ramqp.mo.models import ObjectType
 from ramqp.mo.models import PayloadType
 from ramqp.mo.models import RequestType
 from ramqp.mo.models import ServiceType
+from tests.amqp_helpers import delivered2incoming
+from tests.amqp_helpers import json2raw
+from tests.amqp_helpers import message2delivered
+from tests.amqp_helpers import raw2message
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def moamqp_router() -> MORouter:
 def aio_pika_message() -> Message:
     """Pytest fixture to construct a aio_pika Message."""
     payload = {"key": "value"}
-    return Message(body=json.dumps(payload).encode("utf-8"))
+    return raw2message(json2raw(payload))
 
 
 @pytest.fixture
@@ -185,40 +185,7 @@ def moamqp_test(
 @pytest.fixture
 def aio_pika_delivered_message(aio_pika_message: Message) -> DeliveredMessage:
     """Pytest fixture to construct a aiormq DeliveredMessage."""
-    return DeliveredMessage(
-        # channel should be an AbstractChannel
-        channel=None,  # type: ignore
-        header=attrdict(
-            {
-                "properties": attrdict(
-                    {
-                        "expiration": None,
-                        "content_type": None,
-                        "content_encoding": None,
-                        "delivery_mode": DeliveryMode.NOT_PERSISTENT,
-                        "headers": {},
-                        "priority": 0,
-                        "correlation_id": None,
-                        "reply_to": None,
-                        "message_id": "6800cb934bf94cc68009fe04ac91c972",
-                        "timestamp": None,
-                        "message_type": None,
-                        "user_id": None,
-                        "app_id": None,
-                        "cluster_id": "",
-                    }
-                )
-            }
-        ),
-        body=aio_pika_message.body,
-        delivery=Basic.GetOk(
-            delivery_tag=1,
-            redelivered=False,
-            exchange="9t6wzzmlBcaopTLF1aOPgnnd8szMSU",
-            routing_key="test.routing.key",
-            message_count=None,
-        ),
-    )
+    return message2delivered(aio_pika_message)
 
 
 @pytest.fixture
@@ -226,7 +193,7 @@ def aio_pika_incoming_message(
     aio_pika_delivered_message: DeliveredMessage,
 ) -> IncomingMessage:
     """Pytest fixture to construct a aio_pika IncomingMessage."""
-    return IncomingMessage(aio_pika_delivered_message)
+    return delivered2incoming(aio_pika_delivered_message)
 
 
 def has_elements(iterator: Iterator) -> bool:

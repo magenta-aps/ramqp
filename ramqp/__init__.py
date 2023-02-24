@@ -6,3 +6,5 @@
 from .amqp import AMQPSystem
 from .amqp import PublishMixin
 from .amqp import Router
+from .utils import RejectMessage
+from .utils import RequeueMessage
