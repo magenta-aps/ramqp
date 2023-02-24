@@ -4,14 +4,14 @@
 """This module contains the utilities."""
 import asyncio
 from collections import defaultdict
+from collections.abc import AsyncGenerator
+from collections.abc import Awaitable
+from collections.abc import Callable
+from collections.abc import Hashable
 from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Any
-from typing import AsyncGenerator
-from typing import Awaitable
-from typing import Callable
 from typing import DefaultDict
-from typing import Hashable
 from typing import TypeVar
 
 import anyio
@@ -25,7 +25,14 @@ T = TypeVar("T")
 
 
 def function_to_name(function: Callable) -> str:
-    """Get a uniquely qualified name for a given function."""
+    """Get a uniquely qualified name for a given function.
+
+    Args:
+        function: The function to extract the name of.
+
+    Returns:
+        The uniquely qualified name of the function.
+    """
     return function.__name__
 
 
@@ -49,10 +56,11 @@ def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
             await f(x=1, y=2, z=9)  # blocked
 
     Args:
-        key: A custom key function which should return the arguments considered when
-         determining exclusivity.
+        key: A custom key function returning the arguments considered when determining
+             exclusivity.
 
-    Returns: Wrapper.
+    Returns:
+        Decorator to be applied to callback functions.
     """
     locks: DefaultDict[Hashable, anyio.Lock] = defaultdict(anyio.Lock)
 
@@ -80,7 +88,7 @@ def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
 
 
 @asynccontextmanager
-async def sleep_on_error(delay: int = 30) -> AsyncGenerator:
+async def sleep_on_error(delay: int = 30) -> AsyncGenerator[None, None]:
     """Async context manager that delays returning on errors.
 
     This is used to prevent race-conditions on writes to MO/LoRa, when the upload times
@@ -96,6 +104,15 @@ async def sleep_on_error(delay: int = 30) -> AsyncGenerator:
     (duplicate) write operation.
 
     See: https://redmine.magenta-aps.dk/issues/51949#note-23.
+
+    Args:
+        delay: The delay in seconds to sleep for.
+
+    Raises:
+        Exception: Whatever exception was thrown by the decorated function.
+
+    Yields:
+        None
     """
     try:
         yield

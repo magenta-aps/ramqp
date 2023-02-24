@@ -8,17 +8,13 @@ import json
 from abc import ABCMeta
 from asyncio import CancelledError
 from collections.abc import Callable
+from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
 from typing import Any
 from typing import cast
-from typing import Dict
 from typing import Generic
-from typing import Mapping
-from typing import Optional
-from typing import Set
-from typing import Type
 from typing import TypeVar
 
 import structlog
@@ -46,6 +42,7 @@ from .utils import RejectMessage
 from .utils import RequeueMessage
 
 # Workaround until Self Types in Python 3.11 (PEP673)
+# pylint: disable=invalid-name
 TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
 
 logger = structlog.get_logger()
@@ -58,7 +55,7 @@ class AbstractRouter:
     """
 
     def __init__(self) -> None:
-        self.registry: Dict[CallbackType, Set[str]] = {}
+        self.registry: dict[CallbackType, set[str]] = {}
 
     def _register(self, routing_key: Any) -> Callable[[CallbackType], CallbackType]:
         """Get a decorator for registering callbacks.
@@ -140,7 +137,7 @@ class AbstractPublishMixin:
     Shared code used by both PublishMixin and MOPublishMixin.
     """
 
-    _exchange: Optional[AbstractExchange]
+    _exchange: AbstractExchange | None
 
     async def _publish_message(self, routing_key: Any, payload: dict) -> None:
         """Publish a message to the given routing key.
@@ -149,8 +146,8 @@ class AbstractPublishMixin:
             routing_key: The routing key to send the message to.
             payload: The message payload.
 
-        Returns:
-            None
+        Raises:
+            ValueError: If the AMQPSystem has not been started yet.
         """
         if self._exchange is None:
             raise ValueError("Must call start() before publish message!")
@@ -162,6 +159,7 @@ class AbstractPublishMixin:
             await self._exchange.publish(routing_key=routing_key, message=message)
 
 
+# pylint: disable=invalid-name
 TRouter = TypeVar("TRouter", bound=AbstractRouter)
 
 
@@ -173,13 +171,13 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
     """
 
     __metaclass__ = ABCMeta
-    router_cls: Type[TRouter]
+    router_cls: type[TRouter]
 
     def __init__(
         self,
-        settings: Optional[ConnectionSettings] = None,
-        router: Optional[TRouter] = None,
-        context: Optional[Mapping] = None,
+        settings: ConnectionSettings | None = None,
+        router: TRouter | None = None,
+        context: Mapping | None = None,
     ) -> None:
         if settings is None:
             settings = ConnectionSettings()
@@ -194,12 +192,12 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             context = {}
         self.context = context
 
-        self._connection: Optional[AbstractRobustConnection] = None
-        self._channel: Optional[AbstractRobustChannel] = None
-        self._exchange: Optional[AbstractExchange] = None
-        self._queues: Dict[str, AbstractQueue] = {}
+        self._connection: AbstractRobustConnection | None = None
+        self._channel: AbstractRobustChannel | None = None
+        self._exchange: AbstractExchange | None = None
+        self._queues: dict[str, AbstractQueue] = {}
 
-        self._periodic_task: Optional[asyncio.Task] = None
+        self._periodic_task: asyncio.Task | None = None
 
     @property
     def started(self) -> bool:
@@ -233,9 +231,6 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         * Creates durable queues for each callback in the callback registry.
         * Binds routes to the queues according to the callback registry.
         * Setups up periodic metrics.
-
-        Returns:
-            None
         """
         logger.info("Starting AMQP system")
         settings = self.settings
@@ -301,9 +296,6 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         """Stop the AMQPSystem.
 
         This method disconnects from the AMQP server, and stops the periodic metrics.
-
-        Returns:
-            None
         """
         logger.info("Stopping AMQP system")
         if self._periodic_task is not None:
@@ -323,17 +315,18 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
     async def __aenter__(self: TAMQPSystem) -> TAMQPSystem:
         """Start the AMQPSystem.
 
-        Returns: Self.
+        Returns:
+            Self
         """
         await self.start()
         return await super().__aenter__()  # type: ignore[no-any-return]
 
     async def __aexit__(
         self,
-        __exc_type: Optional[Type[BaseException]],
-        __exc_value: Optional[BaseException],
-        __traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None,
+    ) -> bool | None:
         """Stop the AMQPSystem.
 
         Args:
@@ -341,17 +334,14 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             __exc_value: AbstractAsyncContextManager argument.
             __traceback: AbstractAsyncContextManager argument.
 
-        Returns: None.
+        Returns:
+            None
         """
         await self.stop()
         return await super().__aexit__(__exc_type, __exc_value, __traceback)
 
     async def run_forever(self) -> None:
-        """Start the AMQPSystem, if it isn't already, and run it forever.
-
-        Returns:
-            None
-        """
+        """Start the AMQPSystem, if it isn't already, and run it forever."""
         logger.info("Running forever")
         if not self.started:
             await self.start()
@@ -372,8 +362,8 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             callback: The callback to call with the message.
             message: The message to deliver to the callback.
 
-        Returns:
-            None
+        Raises:
+            Exception: If any exception occurs during the callback.
         """
         assert message.routing_key is not None
         routing_key = message.routing_key

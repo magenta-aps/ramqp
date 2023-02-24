@@ -6,7 +6,6 @@ import asyncio
 import random
 import string
 from typing import Any
-from typing import Dict
 from unittest.mock import AsyncMock
 
 from aio_pika import IncomingMessage
@@ -38,7 +37,7 @@ def random_string(length: int = 30) -> str:
 
 
 async def _test_run_forever_worker(amqp_system: AbstractAMQPSystem) -> None:
-    params: Dict[str, Any] = {}
+    params: dict[str, Any] = {}
 
     async def start(*_: Any, **__: Any) -> None:
         # Instead of starting, cancel all tasks, thus closing the event loop

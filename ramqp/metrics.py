@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module contains the all prometheus metrics."""
 import asyncio
+from collections.abc import Callable
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextlib import ExitStack
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Generator
 
 from aio_pika.abc import AbstractQueue
 from aio_pika.abc import AbstractRobustChannel
@@ -87,7 +86,7 @@ def _handle_receive_metrics(
         routing_key: Routing key of the message.
         function_name: Name of the callback function.
 
-    Returns:
+    Yields:
         None
     """
     labels = (routing_key, function_name)
@@ -139,7 +138,7 @@ def _handle_publish_metrics(routing_key: str) -> Generator[None, None, None]:
     Args:
         routing_key: Routing key of the message.
 
-    Returns:
+    Yields:
         None
     """
     labels = (routing_key,)
@@ -168,7 +167,7 @@ backlog_count = Gauge(
 )
 
 
-def _setup_periodic_metrics(queues: Dict[str, AbstractQueue]) -> asyncio.Task:
+def _setup_periodic_metrics(queues: dict[str, AbstractQueue]) -> asyncio.Task:
     """Setup a periodic job to update non-eventful metrics.
 
     Args:
@@ -177,6 +176,7 @@ def _setup_periodic_metrics(queues: Dict[str, AbstractQueue]) -> asyncio.Task:
     Returns:
         asynchronous task for cancellation
     """
+
     # Setup periodic metrics
     async def periodic_metrics() -> None:
         loop = asyncio.get_running_loop()
@@ -211,10 +211,8 @@ def event_callback_generator(event_key: str) -> Callable:
         """Reconnect callback to update reconnect metrics.
 
         Args:
-            Unused arguments
-
-        Returns:
-            None
+            _1: Unused arguments
+            _2: Unused arguments
         """
         event_counter.labels(event_key).inc()
         event_last.labels(event_key).set_to_current_time()
@@ -227,9 +225,6 @@ def _setup_connection_metrics(connection: AbstractRobustConnection) -> None:
 
     Args:
         connection: The connection install callbacks on.
-
-    Returns:
-        None
     """
     connection.reconnect_callbacks.add(
         event_callback_generator("RobustConnection.reconnect")
@@ -241,10 +236,7 @@ def _setup_channel_metrics(channel: AbstractRobustChannel) -> None:
     """Setup channel metrics collecting for reconnecting events.
 
     Args:
-        connection: The channel install callbacks on.
-
-    Returns:
-        None
+        channel: The channel install callbacks on.
     """
     channel.reopen_callbacks.add(event_callback_generator("RobustChannel.reopen"))
     channel.close_callbacks.add(event_callback_generator("Channel.close"))

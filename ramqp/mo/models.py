@@ -3,17 +3,15 @@
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=too-few-public-methods
 """This module contains the MO specific AMQP models."""
+from collections.abc import Awaitable
+from collections.abc import Callable
 from datetime import datetime
 from enum import auto
 from enum import Enum
 from enum import unique
 from typing import Any
-from typing import Awaitable
-from typing import Callable
 from typing import cast
-from typing import List
 from typing import overload
-from typing import Tuple
 from uuid import UUID
 
 from more_itertools import one
@@ -56,7 +54,7 @@ class AutoLowerNameEnum(Enum):
 
     @staticmethod
     def _generate_next_value_(
-        name: Any, start: int, count: int, last_values: List[Any]
+        name: Any, start: int, count: int, last_values: list[Any]
     ) -> str:
         # The next `auto` value is simply the key name
         return cast(str, name).lower()
@@ -147,7 +145,7 @@ class MORoutingKey:
 
     @classmethod
     def from_tuple(
-        cls, routing_key_tuple: Tuple[ServiceType, ObjectType, RequestType]
+        cls, routing_key_tuple: tuple[ServiceType, ObjectType, RequestType]
     ) -> "MORoutingKey":
         """Convert the given routing_key_tuple to a MORoutingKey.
 
@@ -197,7 +195,7 @@ class MORoutingKey:
     @overload
     @classmethod
     def build(
-        cls, routing_key_tuple: Tuple[ServiceType, ObjectType, RequestType]
+        cls, routing_key_tuple: tuple[ServiceType, ObjectType, RequestType]
     ) -> "MORoutingKey":  # pragma: no cover
         ...
 
@@ -217,6 +215,10 @@ class MORoutingKey:
     def build(cls, *args: Any, **kwargs: Any) -> "MORoutingKey":
         """Attempt to construct a MORoutingKey.
 
+        Args:
+            args: Unspecified arguments
+            kwargs: Unspecified arguments
+
         Returns:
             The constructed MORoutingKey.
         """
@@ -235,7 +237,7 @@ class MORoutingKey:
             return arg
         if isinstance(arg, tuple):
             return cls.from_tuple(
-                cast(Tuple[ServiceType, ObjectType, RequestType], arg)
+                cast(tuple[ServiceType, ObjectType, RequestType], arg)
             )
 
         assert isinstance(arg, str)
@@ -243,9 +245,6 @@ class MORoutingKey:
 
     def __str__(self) -> str:
         """Convert this object to a routing_key.
-
-        Args:
-            self: The object to be converted.
 
         Returns:
             The equivalent routing key.

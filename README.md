@@ -44,7 +44,7 @@ asyncio.run(main())
 ```
 **NOTE**: `**kwargs` is required in all handlers for forward compatibility: the
 framework can add new keywords in the future, and existing handlers should
-accept them without breaking, if they do not use them. 
+accept them without breaking, if they do not use them.
 It can be named `**_`  to prevent the "unused variable" warning by linters.
 
 

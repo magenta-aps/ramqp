@@ -3,12 +3,10 @@
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=too-few-public-methods
 """This module contains the MO specific AMQPSystem."""
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import overload
-from typing import Tuple
 
 from aio_pika import IncomingMessage
 from fastapi.encoders import jsonable_encoder
@@ -36,7 +34,7 @@ class MORouter(AbstractRouter):
 
     def __init__(self) -> None:
         super().__init__()
-        self._adapter_map: Dict[MOCallbackType, CallbackType] = {}
+        self._adapter_map: dict[MOCallbackType, CallbackType] = {}
 
     def _construct_adapter(self, adaptee: MOCallbackType) -> CallbackType:
         """Construct an adapter from a MOCallbackType to CallbackType.
@@ -72,9 +70,6 @@ class MORouter(AbstractRouter):
             Args:
                 message: incoming message to converted and passed to callback.
                 context: Additional context from the AMQP system passed handlers.
-
-            Returns:
-                None
             """
             assert message.routing_key is not None
             mo_routing_key = MORoutingKey.from_routing_key(message.routing_key)
@@ -99,7 +94,7 @@ class MORouter(AbstractRouter):
 
     @overload
     def register(
-        self, routing_key_tuple: Tuple[ServiceType, ObjectType, RequestType]
+        self, routing_key_tuple: tuple[ServiceType, ObjectType, RequestType]
     ) -> Callable:  # pragma: no cover
         ...
 
@@ -150,10 +145,14 @@ class MORouter(AbstractRouter):
         potential race conditions in the application. This means that multiple messages
         for the same MO PayloadType uuid/object_uuid cannot be handled concurrently.
 
-        Args:
+        Note:
             service_type: The service type to bind messages for.
             object_type: The object type to bind messages for.
             request_type: The request type to bind messages for.
+
+        Args:
+            args: The noted arguments split between args or kwargs.
+            kwargs: The noted arguments split between args or kwargs.
 
         Returns:
             A decorator for registering a function to receive callbacks.
@@ -188,7 +187,7 @@ class MOPublishMixin(AbstractPublishMixin):
     @overload
     async def publish_message(
         self,
-        routing_key_tuple: Tuple[ServiceType, ObjectType, RequestType],
+        routing_key_tuple: tuple[ServiceType, ObjectType, RequestType],
         payload: PayloadType,
     ) -> None:  # pragma: no cover
         ...
@@ -208,18 +207,18 @@ class MOPublishMixin(AbstractPublishMixin):
     async def publish_message(self, *args: Any, **kwargs: Any) -> None:
         """Publish a message to the given service.object.request tuple.
 
-        Args:
+        Note:
             service_type: The service type to send the message to.
             object_type: The object type to send the message to.
             request_type: The request type to send the message to.
             payload: The message payload.
 
-        Returns:
-            None
+        Args:
+            args: The noted arguments split between args or kwargs.
+            kwargs: The noted arguments split between args or kwargs.
         """
         if "payload" in kwargs:  # pragma: no cover
-            payload = kwargs["payload"]
-            del kwargs["payload"]
+            payload = kwargs.pop("payload")
         else:
             payload = args[-1]
             args = args[:-1]

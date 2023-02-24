@@ -40,9 +40,9 @@ def test_amqp_vhost_field() -> None:
 
 def test_from_environment(monkeypatch: MonkeyPatch) -> None:
     """Test that AMQP settings are picked up from the environment."""
-    environment = dict(
-        amqp_url="amqp://test",
-    )
+    environment = {
+        "amqp_url": "amqp://test",
+    }
     monkeypatch.setattr(os, "environ", environment)
     settings = ConnectionSettings()
     assert settings.url == "amqp://test"

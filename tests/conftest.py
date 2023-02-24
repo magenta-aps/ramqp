@@ -5,11 +5,10 @@
 """This module contains pytest specific code, fixtures and helpers."""
 import asyncio
 import json
+from collections.abc import Callable
+from collections.abc import Iterator
 from datetime import datetime
 from typing import Any
-from typing import Callable
-from typing import Iterator
-from typing import Optional
 from uuid import uuid4
 
 import pytest
@@ -86,7 +85,7 @@ def amqp_test() -> Callable:
 
     async def make_amqp_test(
         callback: Callable,
-        post_start: Optional[Callable[[AMQPSystem], None]] = None,
+        post_start: Callable[[AMQPSystem], None] | None = None,
         num_messages: int = 1,
     ) -> AMQPSystem:
         """Setup an integration-test AMQPSystem, send a message to the callback."""
@@ -152,7 +151,7 @@ def moamqp_test(
 
     async def make_amqp_test(
         callback: MOCallbackType,
-        post_start: Optional[Callable[[MOAMQPSystem], None]] = None,
+        post_start: Callable[[MOAMQPSystem], None] | None = None,
         num_messages: int = 1,
     ) -> None:
         """Setup an integration-test MOAMQPSystem, send a message to the callback."""

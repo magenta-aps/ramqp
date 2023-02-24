@@ -3,9 +3,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=protected-access
 """This module tests the Router.register decorator method."""
-from typing import Dict
-from typing import Set
-
 import pytest
 from more_itertools import all_unique
 from structlog.testing import LogCapture
@@ -17,7 +14,7 @@ from ramqp.utils import CallbackType
 from ramqp.utils import function_to_name
 
 
-def get_registry(amqp_system: AMQPSystem) -> Dict[CallbackType, Set[str]]:
+def get_registry(amqp_system: AMQPSystem) -> dict[CallbackType, set[str]]:
     """Extract the AMQPSystem callback registry.
 
     Args:

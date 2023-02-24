@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """This module tests the context handling of the AMQP systems."""
-from typing import Callable
+from collections.abc import Callable
 from unittest.mock import AsyncMock
 
 import pytest
