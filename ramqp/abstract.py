@@ -8,17 +8,13 @@ import json
 from abc import ABCMeta
 from asyncio import CancelledError
 from collections.abc import Callable
+from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager
 from functools import partial
 from types import TracebackType
 from typing import Any
 from typing import cast
-from typing import Dict
 from typing import Generic
-from typing import Mapping
-from typing import Optional
-from typing import Set
-from typing import Type
 from typing import TypeVar
 
 import structlog
@@ -58,7 +54,7 @@ class AbstractRouter:
     """
 
     def __init__(self) -> None:
-        self.registry: Dict[CallbackType, Set[str]] = {}
+        self.registry: dict[CallbackType, set[str]] = {}
 
     def _register(self, routing_key: Any) -> Callable[[CallbackType], CallbackType]:
         """Get a decorator for registering callbacks.
@@ -140,7 +136,7 @@ class AbstractPublishMixin:
     Shared code used by both PublishMixin and MOPublishMixin.
     """
 
-    _exchange: Optional[AbstractExchange]
+    _exchange: AbstractExchange | None
 
     async def _publish_message(self, routing_key: Any, payload: dict) -> None:
         """Publish a message to the given routing key.
@@ -173,13 +169,13 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
     """
 
     __metaclass__ = ABCMeta
-    router_cls: Type[TRouter]
+    router_cls: type[TRouter]
 
     def __init__(
         self,
-        settings: Optional[ConnectionSettings] = None,
-        router: Optional[TRouter] = None,
-        context: Optional[Mapping] = None,
+        settings: ConnectionSettings | None = None,
+        router: TRouter | None = None,
+        context: Mapping | None = None,
     ) -> None:
         if settings is None:
             settings = ConnectionSettings()
@@ -194,12 +190,12 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
             context = {}
         self.context = context
 
-        self._connection: Optional[AbstractRobustConnection] = None
-        self._channel: Optional[AbstractRobustChannel] = None
-        self._exchange: Optional[AbstractExchange] = None
-        self._queues: Dict[str, AbstractQueue] = {}
+        self._connection: AbstractRobustConnection | None = None
+        self._channel: AbstractRobustChannel | None = None
+        self._exchange: AbstractExchange | None = None
+        self._queues: dict[str, AbstractQueue] = {}
 
-        self._periodic_task: Optional[asyncio.Task] = None
+        self._periodic_task: asyncio.Task | None = None
 
     @property
     def started(self) -> bool:
@@ -330,10 +326,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
 
     async def __aexit__(
         self,
-        __exc_type: Optional[Type[BaseException]],
-        __exc_value: Optional[BaseException],
-        __traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None,
+    ) -> bool | None:
         """Stop the AMQPSystem.
 
         Args:

@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module tests the MOAMQPSystem."""
 from asyncio import Event
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Set
 
 import pytest
 from more_itertools import all_unique
@@ -26,7 +24,7 @@ from ramqp.utils import CallbackType
 from ramqp.utils import function_to_name
 
 
-def get_registry(moamqp_system: MOAMQPSystem) -> Dict[CallbackType, Set[str]]:
+def get_registry(moamqp_system: MOAMQPSystem) -> dict[CallbackType, set[str]]:
     """Extract the MOAMQPSystem callback registry.
 
     Args:
@@ -65,7 +63,7 @@ async def callback_func2(_1: MORoutingKey, _2: PayloadType, **__: Any) -> None:
 @pytest.mark.integrationtest
 async def test_happy_path(moamqp_test: Callable) -> None:
     """Test that messages can flow through our AMQP system."""
-    params: Dict[str, Any] = {}
+    params: dict[str, Any] = {}
 
     async def callback(
         mo_routing_key: MORoutingKey, payload: PayloadType, **_: Any
@@ -122,7 +120,7 @@ def test_construct_adapter(moamqp_system: MOAMQPSystem) -> None:
 
     def get_adapter_map(
         moamqp_system: MOAMQPSystem,
-    ) -> Dict[MOCallbackType, CallbackType]:
+    ) -> dict[MOCallbackType, CallbackType]:
         return moamqp_system.router._adapter_map  # pylint: disable=protected-access
 
     assert get_adapter_map(moamqp_system) == {}

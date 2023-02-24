@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module contains the all prometheus metrics."""
 import asyncio
+from collections.abc import Callable
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextlib import ExitStack
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Generator
 
 from aio_pika.abc import AbstractQueue
 from aio_pika.abc import AbstractRobustChannel
@@ -168,7 +167,7 @@ backlog_count = Gauge(
 )
 
 
-def _setup_periodic_metrics(queues: Dict[str, AbstractQueue]) -> asyncio.Task:
+def _setup_periodic_metrics(queues: dict[str, AbstractQueue]) -> asyncio.Task:
     """Setup a periodic job to update non-eventful metrics.
 
     Args:
@@ -177,6 +176,7 @@ def _setup_periodic_metrics(queues: Dict[str, AbstractQueue]) -> asyncio.Task:
     Returns:
         asynchronous task for cancellation
     """
+
     # Setup periodic metrics
     async def periodic_metrics() -> None:
         loop = asyncio.get_running_loop()

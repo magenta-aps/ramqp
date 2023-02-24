@@ -4,14 +4,14 @@
 """This module contains the utilities."""
 import asyncio
 from collections import defaultdict
+from collections.abc import AsyncGenerator
+from collections.abc import Awaitable
+from collections.abc import Callable
+from collections.abc import Hashable
 from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Any
-from typing import AsyncGenerator
-from typing import Awaitable
-from typing import Callable
 from typing import DefaultDict
-from typing import Hashable
 from typing import TypeVar
 
 import anyio

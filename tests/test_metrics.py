@@ -5,8 +5,6 @@
 from functools import partial
 from typing import Any
 from typing import cast
-from typing import Set
-from typing import Tuple
 
 import pytest
 
@@ -22,7 +20,7 @@ def clear_register_metrics() -> None:
     callbacks_registered.clear()
 
 
-def get_metric_value(metric: Any, labels: Tuple[str]) -> float:
+def get_metric_value(metric: Any, labels: tuple[str]) -> float:
     """Get the value of a given metric with the given label-set.
 
     Args:
@@ -37,7 +35,7 @@ def get_metric_value(metric: Any, labels: Tuple[str]) -> float:
     return cast(float, metric.get())
 
 
-def get_metric_labels(metric: Any) -> Set[Tuple[str]]:
+def get_metric_labels(metric: Any) -> set[tuple[str]]:
     """Get the label-set for a given metric.
 
     Args:

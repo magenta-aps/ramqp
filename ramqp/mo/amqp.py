@@ -3,12 +3,10 @@
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=too-few-public-methods
 """This module contains the MO specific AMQPSystem."""
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import overload
-from typing import Tuple
 
 from aio_pika import IncomingMessage
 from fastapi.encoders import jsonable_encoder
@@ -36,7 +34,7 @@ class MORouter(AbstractRouter):
 
     def __init__(self) -> None:
         super().__init__()
-        self._adapter_map: Dict[MOCallbackType, CallbackType] = {}
+        self._adapter_map: dict[MOCallbackType, CallbackType] = {}
 
     def _construct_adapter(self, adaptee: MOCallbackType) -> CallbackType:
         """Construct an adapter from a MOCallbackType to CallbackType.
@@ -99,7 +97,7 @@ class MORouter(AbstractRouter):
 
     @overload
     def register(
-        self, routing_key_tuple: Tuple[ServiceType, ObjectType, RequestType]
+        self, routing_key_tuple: tuple[ServiceType, ObjectType, RequestType]
     ) -> Callable:  # pragma: no cover
         ...
 
@@ -188,7 +186,7 @@ class MOPublishMixin(AbstractPublishMixin):
     @overload
     async def publish_message(
         self,
-        routing_key_tuple: Tuple[ServiceType, ObjectType, RequestType],
+        routing_key_tuple: tuple[ServiceType, ObjectType, RequestType],
         payload: PayloadType,
     ) -> None:  # pragma: no cover
         ...

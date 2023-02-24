@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module tests the AMQPSystem.on_message handler."""
 import asyncio
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Type
 
 import pytest
 from aio_pika import IncomingMessage
@@ -19,7 +17,7 @@ from ramqp.utils import RequeueMessage
 @pytest.mark.integrationtest
 async def test_happy_path(amqp_test: Callable) -> None:
     """Test that messages can flow through our AMQP system."""
-    params: Dict[str, Any] = {}
+    params: dict[str, Any] = {}
 
     async def callback(message: IncomingMessage, **_: Any) -> None:
         params["message"] = message
@@ -39,10 +37,10 @@ async def test_happy_path(amqp_test: Callable) -> None:
     ],
 )
 async def test_callback_retrying_and_rejection(
-    amqp_test: Callable, exception: Type[Exception], count: int
+    amqp_test: Callable, exception: type[Exception], count: int
 ) -> None:
     """Test that messages are resend when an exception occur."""
-    params: Dict[str, Any] = {"call_count": 0, "message_ids": set()}
+    params: dict[str, Any] = {"call_count": 0, "message_ids": set()}
 
     async def callback(message: IncomingMessage, **_: Any) -> None:
         params["message_ids"].add(message.message_id)
