@@ -7,5 +7,5 @@ updates:
     directory: /
     schedule:
       interval: daily
-    auto-merge: false
+    auto-merge: true
     rebase-strategy: all
