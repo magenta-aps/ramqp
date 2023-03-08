@@ -2,34 +2,73 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=too-few-public-methods
-"""This module contains the all pydantic BaseSetting(s)."""
-from typing import Any
+"""This module contains the all pydantic BaseModel settings(s)."""
+import typing
 
 from pydantic import AmqpDsn
-from pydantic import BaseSettings
+from pydantic import BaseModel
+from pydantic import Field
 from pydantic import parse_obj_as
-from pydantic import root_validator
-from pydantic import SecretStr
+from pydantic import validator
 
 
-# TODO: Consider using ra-utils structured URL
-class ConnectionSettings(BaseSettings):
+class StructuredAmqpDsn(BaseModel):
+    """Allows specifying AMQP connection URL as individual fields."""
+
+    scheme: str
+    user: str | None = None
+    password: str | None = None
+    host: str | None = None
+    port: str | None = None
+    path: str | None = Field(None, alias="vhost")
+
+    @validator("path")
+    def add_slash_to_path(cls, value: str | None) -> str | None:
+        """Ensure the path component starts with a slash.
+
+        The path component in Pydantic needs to start with a slash, which makes sense
+        for HTTP URLs, but generally you would define `vhost = os2mo`, not `/os2mo`.
+
+        Args:
+            value: The input url.
+
+        Returns:
+            The input value, but with a slash prepended if it was missing.
+        """
+        if value is not None and not value.startswith("/"):
+            value = f"/{value}"
+        return value
+
+    # pylint: disable=missing-class-docstring
+    class Config:
+        allow_population_by_field_name = True
+
+
+class AMQPConnectionSettings(BaseModel):
     """Settings for the AMQP connection.
 
-    These settings can either be provided via environmental variables or directly to
-    the AMQPSystem's init.
+    The connection URL can be specified as a single value, or, alternatively, as
+    individual components. In either case, the user should utilise the `get_url()`
+    method to access the URL.
     """
 
-    # The AMQP connection url, including credentials and vhost.
-    url: AmqpDsn
+    url: AmqpDsn | StructuredAmqpDsn
 
-    # Alternatively, AMQP connection settings can be set individually.
-    scheme: str | None
-    host: str | None
-    user: str | None
-    password: SecretStr | None
-    port: int | None
-    vhost: str | None
+    @typing.no_type_check
+    def get_url(self) -> AmqpDsn:
+        """Get AMQP URL.
+
+        The AMQP URL is either taken directly from the `url` attribute, if specified as
+        an AmqpDsn, or built from the individual fields if a StructuredAmqpDsn.
+        Ideally, the URL would be exposed simply as the attribute, but it is difficult
+        to get working properly when the input has to accept different types.
+
+        Returns:
+            The AMQP connection URL.
+        """
+        if isinstance(self.url, AmqpDsn):
+            return self.url
+        return parse_obj_as(AmqpDsn, AmqpDsn.build(**self.url.dict()))
 
     # The AMQP Exchange we are binding queue messages from. Can be overridden
     # for integration specific exchanges.
@@ -41,37 +80,3 @@ class ConnectionSettings(BaseSettings):
 
     # Maximum number of messages to fetch and handle in parallel.
     prefetch_count: int = 10
-
-    @root_validator(pre=True)
-    def url_from_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Construct AMQP URI from individual fields if one is not set explicitly.
-
-        Args:
-            values: Pydantic parsed values.
-
-        Returns:
-            'values' but with the guarantee that 'url' is set.
-        """
-        # Use full AMQP connection URI if set
-        if values.get("url"):
-            return values
-
-        # Otherwise, construct one from the individual fields.
-        # Pre-validators, which we need to use to have 'url' non-optional,
-        # do not get defaults from untouched fields, so default values are
-        # defined here instead of above.
-        uri = "{scheme}://{user}:{password}@{host}:{port}".format(
-            scheme=values.get("scheme", "amqp"),
-            host=values.get("host", "msg_broker"),
-            user=values.get("user", "guest"),
-            password=values.get("password", "guest"),
-            port=values.get("port", 5672),
-        )
-        if vhost := values.get("vhost"):
-            uri = f"{uri}/{vhost}"
-        values["url"] = parse_obj_as(AmqpDsn, uri)
-        return values
-
-    # pylint: disable=missing-class-docstring
-    class Config:
-        env_prefix = "amqp_"

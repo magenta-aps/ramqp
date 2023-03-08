@@ -8,11 +8,13 @@ from typing import Any
 
 import pytest
 from more_itertools import all_unique
+from pydantic import AmqpDsn
+from pydantic import parse_obj_as
 
 from .common import _test_context_manager
 from .common import _test_run_forever_worker
 from .common import random_string
-from ramqp.config import ConnectionSettings
+from ramqp.config import AMQPConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo.models import MOCallbackType
 from ramqp.mo.models import MORoutingKey
@@ -208,7 +210,8 @@ async def test_handler_exclusivity(
     test_id = random_string()
     queue_prefix = f"test_{test_id}"
     amqp_system = MOAMQPSystem(
-        settings=ConnectionSettings(
+        settings=AMQPConnectionSettings(
+            url=parse_obj_as(AmqpDsn, "amqp://guest:guest@rabbitmq:5672"),
             queue_prefix=queue_prefix,
             exchange=test_id,
         ),

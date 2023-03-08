@@ -21,7 +21,7 @@ from typing import Any
 
 from ramqp import AMQPSystem
 from ramqp import Router
-from ramqp.config import ConnectionSettings
+from ramqp.config import AMQPConnectionSettings
 
 router = Router()
 
@@ -35,7 +35,7 @@ async def callback_function(routing_key: str, **kwargs: Any) -> None:
 
 
 async def main() -> None:
-    settings = ConnectionSettings(queue_prefix="my-program")
+    settings = AMQPConnectionSettings(url=..., queue_prefix="my-program")
     async with AMQPSystem(settings=settings, router=router) as amqp_system:
         await amqp_system.run_forever()
 
@@ -52,8 +52,41 @@ Sending:
 ```python
 from ramqp import AMQPSystem
 
-with AMQPSystem() as amqp_system:
+with AMQPSystem(...) as amqp_system:
     await amqp_system.publish_message("my.routing.key", {"key": "value"})
+```
+
+### Settings
+In most cases, `AMQPConnectionSettings` is probably initialised by being
+included in the `BaseSettings` of the application using the library. The `url`
+parameter of the `AMQPConnectionSettings` object can be given as a single URL
+string or as individual structured fields. Consider the following:
+```python
+from pydantic import BaseSettings
+
+from ramqp.config import AMQPConnectionSettings
+
+# BaseSettings makes the entire model initialisable using environment variables
+class Settings(BaseSettings):
+    amqp: AMQPConnectionSettings
+
+    class Config:
+        env_nested_delimiter = "__"  # allows setting e.g. AMQP__URL__HOST=foo
+
+settings = Settings()
+```
+The above would work with either multiple structured environment variables
+```
+AMQP__URL__SCHEME=amqp
+AMQP__URL__USER=guest
+AMQP__URL__PASSWORD=guest
+AMQP__URL__HOST=msg_broker
+AMQP__URL__PORT=5672
+AMQP__URL__VHOST=os2mo
+```
+or a single URL definition
+```
+AMQP__URL=amqp://guest:guest@msg_broker:5672/os2mo
 ```
 
 ### MO AMQP
@@ -63,7 +96,7 @@ Receiving:
 import asyncio
 from typing import Any
 
-from ramqp.config import ConnectionSettings
+from ramqp.config import AMQPConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo import MORouter
 from ramqp.mo.models import MORoutingKey
@@ -87,7 +120,7 @@ async def callback_function(
 
 
 async def main() -> None:
-    settings = ConnectionSettings(queue_prefix="my-program")
+    settings = AMQPConnectionSettings(url=..., queue_prefix="my-program")
     async with MOAMQPSystem(settings=settings, router=router) as amqp_system:
         await amqp_system.run_forever()
 
@@ -109,7 +142,7 @@ from ramqp.mo.models import ServiceType
 
 payload = PayloadType(uuid=uuid4(), object_uuid=uuid4(), time=datetime.now())
 
-async with MOAMQPSystem() as amqp_system:
+async with MOAMQPSystem(...) as amqp_system:
     await amqp_system.publish_message(
         ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT, payload
     )
@@ -131,7 +164,7 @@ from fastapi import APIRouter
 from fastapi import FastAPI
 from starlette.requests import Request
 
-from ramqp.config import ConnectionSettings
+from ramqp.config import AMQPConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo import MORouter
 
@@ -158,7 +191,7 @@ def create_app() -> FastAPI:
     app.include_router(fastapi_router)
     app.state.context = context  # share context with FastAPI
 
-    settings = ConnectionSettings(queue_prefix="my-program")
+    settings = AMQPConnectionSettings(url=..., queue_prefix="my-program")
     amqp_system = MOAMQPSystem(
         settings=settings,
         router=amqp_router,

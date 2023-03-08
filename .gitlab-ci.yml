@@ -59,8 +59,6 @@ Integration-test:
     PYTEST_COV_MODULE: ramqp
     PYTEST_EXTRA_FLAGS: -m integrationtest
 
-    AMQP_URL: amqp://guest:guest@rabbitmq:5672
-
 Export Integration-test coverage:
   extends: .export_coverage
   needs:
