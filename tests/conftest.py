@@ -15,13 +15,14 @@ import structlog
 from aio_pika import IncomingMessage
 from aio_pika import Message
 from aiormq.abc import DeliveredMessage
+from pydantic import AmqpDsn
 from pydantic import parse_obj_as
 from structlog.testing import LogCapture
 
 from .common import random_string
 from ramqp import AMQPSystem
 from ramqp import Router
-from ramqp.config import ConnectionSettings
+from ramqp.config import AMQPConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo import MORouter
 from ramqp.mo.models import MOCallbackType
@@ -48,16 +49,24 @@ def fixture_configure_structlog(log_output: LogCapture) -> None:
     structlog.configure(processors=[log_output])
 
 
+@pytest.fixture(scope="session")
+def connection_settings() -> AMQPConnectionSettings:
+    """Pytest fixture to construct AMQPConnectionSettings."""
+    return AMQPConnectionSettings(
+        url=parse_obj_as(AmqpDsn, "amqp://guest:guest@rabbitmq:5672")
+    )
+
+
 @pytest.fixture
-def amqp_system() -> AMQPSystem:
+def amqp_system(connection_settings: AMQPConnectionSettings) -> AMQPSystem:
     """Pytest fixture to construct an AMQPSystem."""
-    return AMQPSystem()
+    return AMQPSystem(settings=connection_settings)
 
 
 @pytest.fixture
-def moamqp_system() -> MOAMQPSystem:
+def moamqp_system(connection_settings: AMQPConnectionSettings) -> MOAMQPSystem:
     """Pytest fixture to construct an MOAMQPSystem."""
-    return MOAMQPSystem()
+    return MOAMQPSystem(settings=connection_settings)
 
 
 @pytest.fixture
@@ -72,7 +81,7 @@ def moamqp_router() -> MORouter:
     return MORouter()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def aio_pika_message() -> Message:
     """Pytest fixture to construct a aio_pika Message."""
     payload = {"key": "value"}
@@ -102,7 +111,8 @@ def amqp_test() -> Callable:
                 message_blocker.release()
 
         amqp_system = AMQPSystem(
-            settings=ConnectionSettings(
+            settings=AMQPConnectionSettings(
+                url=parse_obj_as(AmqpDsn, "amqp://guest:guest@rabbitmq:5672"),
                 queue_prefix=queue_prefix,
                 exchange=test_id,
             ),
@@ -166,7 +176,8 @@ def moamqp_test(
                 message_blocker.release()
 
         amqp_system = MOAMQPSystem(
-            settings=ConnectionSettings(
+            settings=AMQPConnectionSettings(
+                url=parse_obj_as(AmqpDsn, "amqp://guest:guest@rabbitmq:5672"),
                 queue_prefix=queue_prefix,
                 exchange=test_id,
             ),

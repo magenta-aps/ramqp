@@ -28,7 +28,7 @@ from aio_pika.abc import AbstractRobustChannel
 from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
-from .config import ConnectionSettings
+from .config import AMQPConnectionSettings
 from .metrics import _handle_publish_metrics
 from .metrics import _handle_receive_metrics
 from .metrics import _setup_channel_metrics
@@ -175,12 +175,10 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
 
     def __init__(
         self,
-        settings: ConnectionSettings | None = None,
+        settings: AMQPConnectionSettings,
         router: TRouter | None = None,
         context: Mapping | None = None,
     ) -> None:
-        if settings is None:
-            settings = ConnectionSettings()
         self.settings = settings
 
         if router is None:
