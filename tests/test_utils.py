@@ -63,7 +63,7 @@ def test_message2model_preconditions() -> None:
     assert "model argument not found on message2model function" in str(exc_info.value)
 
     # pylint: disable=unused-argument
-    async def model_callback(model, **_: Any) -> None:  # type: ignore
+    async def model_callback(model) -> None:  # type: ignore
         pass
 
     with pytest.raises(ValueError) as exc_info:
