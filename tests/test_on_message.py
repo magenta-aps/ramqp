@@ -7,9 +7,9 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from aio_pika import IncomingMessage
 from more_itertools import one
 
+from ramqp.depends import Message
 from ramqp.utils import RejectMessage
 from ramqp.utils import RequeueMessage
 
@@ -19,12 +19,12 @@ async def test_happy_path(amqp_test: Callable) -> None:
     """Test that messages can flow through our AMQP system."""
     params: dict[str, Any] = {}
 
-    async def callback(message: IncomingMessage, **_: Any) -> None:
+    async def callback(message: Message) -> None:
         params["message"] = message
 
     await amqp_test(callback)
     assert list(params.keys()) == ["message"]
-    assert isinstance(params["message"], IncomingMessage)
+    assert isinstance(params["message"], Message)  # type: ignore[misc]
 
 
 @pytest.mark.integrationtest
@@ -42,7 +42,7 @@ async def test_callback_retrying_and_rejection(
     """Test that messages are resend when an exception occur."""
     params: dict[str, Any] = {"call_count": 0, "message_ids": set()}
 
-    async def callback(message: IncomingMessage, **_: Any) -> None:
+    async def callback(message: Message) -> None:
         params["message_ids"].add(message.message_id)
         params["call_count"] += 1
         if params["call_count"] < 5:

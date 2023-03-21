@@ -25,12 +25,9 @@ from ramqp import Router
 from ramqp.config import AMQPConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo import MORouter
-from ramqp.mo.models import MOCallbackType
-from ramqp.mo.models import MORoutingKey
-from ramqp.mo.models import ObjectType
-from ramqp.mo.models import PayloadType
-from ramqp.mo.models import RequestType
-from ramqp.mo.models import ServiceType
+from ramqp.mo import MORoutingKey
+from ramqp.mo import PayloadType
+from ramqp.utils import CallbackType
 from tests.amqp_helpers import delivered2incoming
 from tests.amqp_helpers import json2raw
 from tests.amqp_helpers import message2delivered
@@ -145,11 +142,7 @@ def mo_payload() -> PayloadType:
 @pytest.fixture
 def mo_routing_key() -> MORoutingKey:
     """Pytest fixture to construct a MO routing tuple."""
-    return MORoutingKey(
-        service_type=ServiceType.EMPLOYEE,
-        object_type=ObjectType.ADDRESS,
-        request_type=RequestType.CREATE,
-    )
+    return "employee.address.create"
 
 
 @pytest.fixture
@@ -160,7 +153,7 @@ def moamqp_test(
     """Return an integration-test callable."""
 
     async def make_amqp_test(
-        callback: MOCallbackType,
+        callback: CallbackType,
         post_start: Callable[[MOAMQPSystem], None] | None = None,
         num_messages: int = 1,
     ) -> None:

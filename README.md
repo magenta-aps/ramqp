@@ -17,20 +17,21 @@ Receiving:
 
 ```python
 import asyncio
-from typing import Any
 
 from ramqp import AMQPSystem
 from ramqp import Router
 from ramqp.config import AMQPConnectionSettings
+from ramqp.depends import RoutingKey
 
 router = Router()
+
 
 # Configure the callback function to receive messages for the two routing keys.
 # If an exception is thrown from the function, the message is not acknowledged.
 # Thus, it will be retried immediately.
 @router.register("my.routing.key")
 @router.register("my.other.routing.key")
-async def callback_function(routing_key: str, **kwargs: Any) -> None:
+async def callback_function(routing_key: RoutingKey) -> None:
     pass
 
 
@@ -42,10 +43,6 @@ async def main() -> None:
 
 asyncio.run(main())
 ```
-**NOTE**: `**kwargs` is required in all handlers for forward compatibility: the
-framework can add new keywords in the future, and existing handlers should
-accept them without breaking, if they do not use them.
-It can be named `**_`  to prevent the "unused variable" warning by linters.
 
 
 Sending:
@@ -55,6 +52,42 @@ from ramqp import AMQPSystem
 with AMQPSystem(...) as amqp_system:
     await amqp_system.publish_message("my.routing.key", {"key": "value"})
 ```
+
+### Dependency Injection
+The callback handlers support
+[FastAPI dependency injection](https://fastapi.tiangolo.com/tutorial/dependencies).
+This allows handlers to request exactly the data that they need, as seen with
+FastAPI dependencies or PyTest fixtures. A callback may look like:
+```python
+from ramqp.mo import MORoutingKey
+from ramqp.mo import PayloadType
+
+async def callback(mo_routing_key: MORoutingKey, payload: PayloadType):
+    ...
+```
+
+Experienced FastAPI developers might wonder how this works without the `Depends`
+function. Indeed, this less verbose pattern was
+[introduced in FastAPI v0.95](https://fastapi.tiangolo.com/release-notes/#0950),
+and works by defining the dependency directly on the type using the `Annotated`
+mechanism from [PEP593](https://peps.python.org/pep-0593/). For example:
+```python
+MORoutingKey = Annotated[MORoutingKey, Depends(get_routing_key)]
+PayloadType = Annotated[PayloadType, Depends(get_payload_as_type(PayloadType))]
+```
+whereby the previous example is equivalent to
+```python
+async def callback(
+    mo_routing_key: MORoutingKey = Depends(get_routing_key),
+    payload: PayloadType = Depends(get_payload_as_type(PayloadType))
+):
+    ...
+```
+.
+
+Reference documentation should be made available for these types in the future,
+but for now they can be found mainly in `ramqp/depends.py` and `ramqp/mo.py`.
+
 
 ### Settings
 In most cases, `AMQPConnectionSettings` is probably initialised by being
@@ -94,16 +127,12 @@ Receiving:
 
 ```python
 import asyncio
-from typing import Any
 
 from ramqp.config import AMQPConnectionSettings
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo import MORouter
-from ramqp.mo.models import MORoutingKey
-from ramqp.mo.models import ObjectType
-from ramqp.mo.models import PayloadType
-from ramqp.mo.models import RequestType
-from ramqp.mo.models import ServiceType
+from ramqp.mo import MORoutingKey
+from ramqp.mo import PayloadType
 
 router = MORouter()
 
@@ -111,10 +140,10 @@ router = MORouter()
 # Configure the callback function to receive messages for the two routing keys.
 # If an exception is thrown from the function, the message is not acknowledged.
 # Thus, it will be retried immediately.
-@router.register(ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT)
+@router.register("employee.address.edit")
 @router.register("employee.it.create")
 async def callback_function(
-    mo_routing_key: MORoutingKey, payload: PayloadType, **kwargs: Any
+        mo_routing_key: MORoutingKey, payload: PayloadType
 ) -> None:
     pass
 
@@ -135,17 +164,12 @@ from datetime import datetime
 from uuid import uuid4
 
 from ramqp.mo import MOAMQPSystem
-from ramqp.mo.models import ObjectType
-from ramqp.mo.models import PayloadType
-from ramqp.mo.models import RequestType
-from ramqp.mo.models import ServiceType
+from ramqp.mo import PayloadType
 
 payload = PayloadType(uuid=uuid4(), object_uuid=uuid4(), time=datetime.now())
 
 async with MOAMQPSystem(...) as amqp_system:
-    await amqp_system.publish_message(
-        ServiceType.EMPLOYEE, ObjectType.ADDRESS, RequestType.EDIT, payload
-    )
+    await amqp_system.publish_message("employee.address.edit", payload)
 ```
 
 ### FastAPI and Additional Context
@@ -158,13 +182,13 @@ and subsequently retrieved in the handlers:
 ```python
 from contextlib import asynccontextmanager
 from functools import partial
-from typing import Any
 
 from fastapi import APIRouter
 from fastapi import FastAPI
 from starlette.requests import Request
 
 from ramqp.config import AMQPConnectionSettings
+from ramqp.depends import Context
 from ramqp.mo import MOAMQPSystem
 from ramqp.mo import MORouter
 
@@ -173,7 +197,7 @@ fastapi_router = APIRouter()
 
 
 @amqp_router.register("employee.it.create")
-async def callback_function(context: dict, **kwargs: Any) -> None:
+async def callback_function(context: Context) -> None:
     print(context["greeting"])  # Hello, world!
 
 
@@ -217,7 +241,7 @@ Save the example as `example.py` and try it with
 
 
 ### Metrics
-RAMQP exports a myraid of prometheus metrics via `prometheus/client_python`.
+RAMQP exports a myriad of prometheus metrics via `prometheus/client_python`.
 
 These can be exported using:
 ```

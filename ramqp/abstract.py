@@ -29,6 +29,7 @@ from aio_pika.abc import AbstractRobustConnection
 from more_itertools import all_unique
 
 from .config import AMQPConnectionSettings
+from .depends import dependency_injected
 from .metrics import _handle_publish_metrics
 from .metrics import _handle_receive_metrics
 from .metrics import _setup_channel_metrics
@@ -41,9 +42,6 @@ from .utils import function_to_name
 from .utils import RejectMessage
 from .utils import RequeueMessage
 
-# Workaround until Self Types in Python 3.11 (PEP673)
-# pylint: disable=invalid-name
-TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
 
 logger = structlog.get_logger()
 
@@ -82,23 +80,6 @@ class AbstractRouter:
             def callback2(message: IncomingMessage):
                 pass
             ```
-
-        Note that, unlike the MOAMQPSystem where exclusive message handling is the
-        default, semantically identical messages may be handled concurrently due to the
-        parallelism provided by the `prefetch_count` setting. This can lead to race
-        conditions in the application if multiple callbacks read and write state in an
-        intertwined fashion. Unfortunately, because the semantics of the payload is
-        unknown, exclusivity cannot automatically be provided. Instead, it is
-        recommended to wrap all sensitive functions manually::
-
-            @router.register("my.routing.key")
-            async def callback1(message: IncomingMessage, **kwargs: Any):
-                payload = parse_obj_as(Payload, message)
-                await handler(payload, **kwargs)
-
-            @handle_exclusively(key=lambda payload, **kwargs: (payload.id, payload.foo))
-            async def handler(payload: Payload, **kwargs):
-                pass
 
         Args:
             routing_key: The routing key to bind messages for.
@@ -161,6 +142,9 @@ class AbstractPublishMixin:
 
 # pylint: disable=invalid-name
 TRouter = TypeVar("TRouter", bound=AbstractRouter)
+# Workaround until Self Types in Python 3.11 (PEP673)
+# pylint: disable=invalid-name
+TAMQPSystem = TypeVar("TAMQPSystem", bound="AbstractAMQPSystem")
 
 
 # pylint: disable=too-many-instance-attributes
@@ -379,7 +363,9 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
                 async with message.process(ignore_processed=True):
                     try:
                         # TODO: Add retry metric
-                        await callback(message=message, context=self.context)
+                        await dependency_injected(callback)(
+                            message=message, context=self.context
+                        )
                     except RejectMessage:
                         await message.reject(requeue=False)
                         log.info("Rejected message")
