@@ -26,6 +26,7 @@ from ramqp.depends import get_payload_as_type
 from ramqp.depends import get_payload_bytes
 from ramqp.depends import handle_exclusively
 from ramqp.depends import Message
+from ramqp.depends import RoutingKey
 from ramqp.depends import sleep_on_error
 from tests.amqp_helpers import payload2incoming
 
@@ -150,11 +151,12 @@ async def test_dependency_injected_message_and_context() -> None:
         HelloWorldModel, Depends(get_payload_as_type(HelloWorldModel))
     ]
 
-    # pylint: disable=invalid-name
+    # pylint: disable=invalid-name,too-many-arguments
     @dependency_injected
     async def function(
         message: Message,
         context: Context,
+        routing_key: RoutingKey,
         payload: PayloadDict,
         model: HelloWorld,
         value: Annotated[str, Depends(from_context("key"))],
@@ -162,6 +164,7 @@ async def test_dependency_injected_message_and_context() -> None:
         return {
             "message": message,
             "context": context,
+            "routing_key": routing_key,
             "key": value,
             "payload": payload,
             "model": model,
@@ -173,6 +176,7 @@ async def test_dependency_injected_message_and_context() -> None:
     args = await function(message=amqp_message, context=amqp_context)
     assert args["message"] == amqp_message
     assert args["context"] == amqp_context
+    assert args["routing_key"] == "test.routing.key"
     assert args["key"] == amqp_context["key"]
     assert args["payload"] == amqp_message_payload
     assert isinstance(args["model"], HelloWorldModel)
