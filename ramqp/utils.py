@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module contains the utilities."""
 import asyncio
-import json
 from collections import defaultdict
 from collections.abc import AsyncGenerator
 from collections.abc import Awaitable
@@ -17,7 +16,6 @@ from typing import TypeVar
 
 import anyio
 import structlog
-from aio_pika import IncomingMessage
 
 logger = structlog.get_logger()
 
@@ -147,34 +145,3 @@ class RequeueMessage(Exception):
                 if temporary_condition:
                     raise RejectMessage("Due to X, the message should be retried later")
     """
-
-
-def message2json(function: Callable) -> Callable:
-    """AMQPSystem callback decorator to parse messages to json.
-
-    Examples:
-        Simple usage::
-
-            @router.register("my.routing.key")
-            @message2json
-            async def callback_function(payload: dict[str, Any], **kwargs: Any) -> None:
-                assert payload["hello"] == "world"
-
-            async def trigger():
-                await amqpsystem.publish_message(
-                    "my.routing.key", {"hello": "world"}
-                )
-
-    Args:
-        function: Message callback function.
-
-    Returns:
-        A decorated function which calls 'function' with a parsed json payload.
-    """
-
-    @wraps(function)
-    async def parsed_message_wrapper(message: IncomingMessage, **kwargs: Any) -> Any:
-        payload = json.loads(message.body)
-        return await function(payload=payload, message=message, **kwargs)
-
-    return parsed_message_wrapper
