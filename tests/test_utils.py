@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from ramqp.utils import context_extractor
 from ramqp.utils import message2json
 from ramqp.utils import message2model
 from tests.amqp_helpers import payload2incoming
@@ -23,20 +22,6 @@ async def callback(**kwargs: Any) -> dict[str, Any]:
         kwargs as provided.
     """
     return kwargs
-
-
-async def test_context_extractor() -> None:
-    """Test that context_extractor works as expected."""
-    result = await callback(a=1, context={"b": 2, "c": 3}, d=4)
-    assert result == {"a": 1, "context": {"b": 2, "c": 3}, "d": 4}
-
-    extractor_callback = context_extractor(callback)
-    result = await extractor_callback(a=1, context={"b": 2, "c": 3}, d=4)
-    assert result == {"a": 1, "b": 2, "c": 3, "context": {"b": 2, "c": 3}, "d": 4}
-
-    with pytest.raises(TypeError) as exc_info:
-        await extractor_callback(a=1, context={"a": 1})
-    assert "got multiple values for keyword argument 'a'" in str(exc_info.value)
 
 
 async def test_message2json() -> None:
