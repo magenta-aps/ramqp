@@ -89,6 +89,40 @@ Reference documentation should be made available for these types in the future,
 but for now they can be found mainly in `ramqp/depends.py` and `ramqp/mo.py`.
 
 
+### Context
+```python
+import asyncio
+from typing import Annotated
+
+import httpx
+from fastapi import Depends
+
+from ramqp import AMQPSystem
+from ramqp import Router
+from ramqp.depends import Context
+from ramqp.depends import from_context
+
+router = Router()
+
+async def main() -> None:
+    async with httpx.AsyncClient() as client:
+        context = {
+            "client": client,
+        }
+        async with AMQPSystem(..., context=context) as amqp_system:
+            await amqp_system.run_forever()
+
+
+HTTPXClient = Annotated[httpx.AsyncClient, Depends(from_context("client"))]
+
+@router.register("my.routing.key")
+async def callback_function(context: Context, client: HTTPXClient) -> None:
+    pass
+
+asyncio.run(main())
+```
+
+
 ### Settings
 In most cases, `AMQPConnectionSettings` is probably initialised by being
 included in the `BaseSettings` of the application using the library. The `url`
@@ -143,7 +177,7 @@ router = MORouter()
 @router.register("employee.address.edit")
 @router.register("employee.it.create")
 async def callback_function(
-        mo_routing_key: MORoutingKey, payload: PayloadType
+    mo_routing_key: MORoutingKey, payload: PayloadType
 ) -> None:
     pass
 
