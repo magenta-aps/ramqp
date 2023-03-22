@@ -11,7 +11,6 @@ from collections.abc import Callable
 from collections.abc import Hashable
 from contextlib import asynccontextmanager
 from functools import wraps
-from inspect import signature
 from typing import Any
 from typing import DefaultDict
 from typing import TypeVar
@@ -19,7 +18,6 @@ from typing import TypeVar
 import anyio
 import structlog
 from aio_pika import IncomingMessage
-from pydantic import parse_raw_as
 
 logger = structlog.get_logger()
 
@@ -149,52 +147,6 @@ class RequeueMessage(Exception):
                 if temporary_condition:
                     raise RejectMessage("Due to X, the message should be retried later")
     """
-
-
-def message2model(function: Callable) -> Callable:
-    """AMQPSystem callback decorator to parse message bodies as models.
-
-    Examples:
-        Simple usage::
-
-            class MyModel(BaseModel):
-                payload: str
-
-            @router.register("my.routing.key")
-            @message2model
-            async def callback_function(model: MyModel, **kwargs: Any) -> None:
-                assert model.payload == "deadbeef"
-
-            async def trigger():
-                await amqpsystem.publish_message(
-                    "my.routing.key", MyModel(payload="deadbeef").dict()
-                )
-
-    Args:
-        function: Message callback function which takes a typed 'model' parameter.
-
-    Raises:
-        ValueError: If the model argument was not found on the decorated function.
-        ValueError: If the model argument was not annotated on the decorated function.
-
-    Returns:
-        A decorated function which calls 'function' with a parsed model.
-    """
-    sig = signature(function)
-    parameter = sig.parameters.get("model", None)
-    if parameter is None:
-        raise ValueError("model argument not found on message2model function")
-    if parameter.annotation == parameter.empty:
-        raise ValueError("model argument not annotated on message2model function")
-
-    model = parameter.annotation
-
-    @wraps(function)
-    async def parsed_message_wrapper(message: IncomingMessage, **kwargs: Any) -> Any:
-        payload = parse_raw_as(model, message.body)
-        return await function(model=payload, message=message, **kwargs)
-
-    return parsed_message_wrapper
 
 
 def message2json(function: Callable) -> Callable:
