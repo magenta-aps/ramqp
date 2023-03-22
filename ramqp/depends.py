@@ -4,7 +4,6 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from collections.abc import Callable
-from contextlib import asynccontextmanager
 from contextlib import AsyncExitStack
 from functools import wraps
 from typing import Annotated
@@ -200,9 +199,8 @@ def get_payload_as_type(type_: type[T]) -> Callable[..., T]:
     return inner
 
 
-@asynccontextmanager
-async def sleep_on_error(delay: int = 30) -> AsyncGenerator[None, None]:
-    """Async context manager that delays returning on errors.
+def sleep_on_error(delay: int = 30) -> Callable[[], AsyncGenerator[None, None]]:
+    """Construct an pseudo-context manager which delays returning on errors.
 
     This is used to prevent race-conditions on writes to MO/LoRa, when the upload times
     out initially but is completed by the backend afterwards. The sleep ensures that
@@ -222,13 +220,17 @@ async def sleep_on_error(delay: int = 30) -> AsyncGenerator[None, None]:
         delay: The delay in seconds to sleep for.
 
     Raises:
-        Exception: Whatever exception was thrown by the decorated function.
+        Whatever exception was thrown by the decorated function.
 
-    Yields:
-        None
+    Returns:
+        A Coroutine pseudo-context manager which sleeps on any exception.
     """
-    try:
-        yield
-    except Exception:  # pylint: disable=broad-except
-        await asyncio.sleep(delay)
-        raise
+
+    async def inner() -> AsyncGenerator[None, None]:
+        try:
+            yield
+        except Exception:  # pylint: disable=broad-except
+            await asyncio.sleep(delay)
+            raise
+
+    return inner
