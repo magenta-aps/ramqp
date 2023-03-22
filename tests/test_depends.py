@@ -42,7 +42,7 @@ async def test_depends_errors() -> None:
 
 
 async def test_from_context() -> None:
-    """Test that context_extractor works as expected."""
+    """Test that from_context works as expected."""
     context = {"a": 1, "b": 2}
 
     result = from_context("a")(context)

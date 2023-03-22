@@ -151,42 +151,6 @@ class RequeueMessage(Exception):
     """
 
 
-def context_extractor(function: Callable) -> Callable:
-    """AMQPSystem callback decorator to explode context as kwargs.
-
-    Examples:
-        Simple usage::
-
-            context = {
-                "settings": Settings(),
-                "amqpsystem": ...,
-                "...": ...
-            }
-
-            ...
-
-            @router.register("my.routing.key")
-            @context_extractor
-            async def callback_function(
-                amqpsystem: AMQPSystem, context: dict[str, Any], **kwargs: Any
-            ) -> None:
-                # assert context["amqpsystem"] == amqpsystem
-                await amqpsystem.publish_message(...)
-
-    Args:
-        function: Message callback function.
-
-    Returns:
-        A decorated function which calls 'function' with a context applied as kwargs.
-    """
-
-    @wraps(function)
-    async def extractor(context: dict[str, Any], **kwargs: Any) -> Any:
-        return await function(**context, context=context, **kwargs)
-
-    return extractor
-
-
 def message2model(function: Callable) -> Callable:
     """AMQPSystem callback decorator to parse message bodies as models.
 
