@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Test helper utilities from utils.py."""
+import asyncio
+from asyncio import Event
 from collections.abc import AsyncIterator
 from collections.abc import Callable
 from collections.abc import Iterator
@@ -11,6 +13,7 @@ from typing import Any
 import pytest
 from fastapi import Depends
 from pydantic import BaseModel
+from pytest import MonkeyPatch
 
 from ramqp import AMQPSystem
 from ramqp.depends import Context
@@ -19,6 +22,7 @@ from ramqp.depends import from_context
 from ramqp.depends import get_payload_as_type
 from ramqp.depends import get_payload_bytes
 from ramqp.depends import Message
+from ramqp.depends import sleep_on_error
 from tests.amqp_helpers import payload2incoming
 
 
@@ -56,8 +60,8 @@ async def test_from_context() -> None:
     assert "'c'" in str(exc_info.value)
 
 
-async def test_message2x() -> None:
-    """Test message2x works as expected."""
+async def test_payload_as_x() -> None:
+    """Test get_payload_bytes/get_payload_as_type works as expected."""
     amqp_message_payload = {"hello": "world"}
     amqp_message = payload2incoming(amqp_message_payload)
 
@@ -188,3 +192,40 @@ async def test_context_amqp(amqp_test: Callable) -> None:
 
     await amqp_test(callback, post_start=post_start)
     assert call_args["context"] is context
+
+
+async def test_sleep_on_error(monkeypatch: MonkeyPatch) -> None:
+    """Test that the decorator sleeps if an error is thrown."""
+
+    @dependency_injected
+    async def function(_: Annotated[None, Depends(sleep_on_error(delay=10))]) -> None:
+        raise ValueError("no thanks")
+
+    sleep_event = Event()
+
+    async def fake_sleep(*_: Any, **__: Any) -> None:
+        sleep_event.set()
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+    with pytest.raises(ValueError, match="no thanks"):
+        message = payload2incoming({"hello": "world"})
+        await function(message=message, context={})
+
+    assert sleep_event.is_set()
+
+
+async def test_dont_sleep_on_success(monkeypatch: MonkeyPatch) -> None:
+    """Test that the decorator does not sleep if there are no errors."""
+
+    @dependency_injected
+    async def function(_: Annotated[None, Depends(sleep_on_error(delay=10))]) -> None:
+        return None
+
+    async def fake_sleep(*_: Any, **__: Any) -> None:
+        assert False, "we should not sleep on success"
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+    message = payload2incoming({"hello": "world"})
+    await function(message=message, context={})
