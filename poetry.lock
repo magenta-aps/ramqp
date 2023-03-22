@@ -1,6 +1,6 @@
 [[package]]
 name = "aio-pika"
-version = "9.0.4"
+version = "9.0.5"
 description = "Wrapper around the aiormq for asyncio and humans"
 category = "main"
 optional = false
@@ -602,8 +602,8 @@ content-hash = "0af476d237738b24741f184b8f8fe827c41e2ce075be8efa42eac847101b1fc2
 
 [metadata.files]
 aio-pika = [
-    {file = "aio_pika-9.0.4-py3-none-any.whl", hash = "sha256:002645768feaf5e27255824b7814f8b657f67bbcf24b381bc93cd88faaabf913"},
-    {file = "aio_pika-9.0.4.tar.gz", hash = "sha256:a7cf270de3f23dd550beca6e287e2a4707c99bd092a606619ff3b0df44deb6fa"},
+    {file = "aio_pika-9.0.5-py3-none-any.whl", hash = "sha256:48e90b6a901742e8078c306d3a28580a065b16b5178dd50b2399b27b1884b15d"},
+    {file = "aio_pika-9.0.5.tar.gz", hash = "sha256:096add8286019832008baa48e7463d7c0c609953011ec4c3e185f5249760e47b"},
 ]
 aiormq = [
     {file = "aiormq-6.7.3-py3-none-any.whl", hash = "sha256:bc6601b98c7297e9b47f89a794d4400bc3e3823dc9679f58985d6bd7617bafb4"},
