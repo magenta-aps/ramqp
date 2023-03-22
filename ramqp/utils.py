@@ -34,7 +34,7 @@ class RejectMessage(Exception):
         Simple usage::
 
             @router.register("my.routing.key")
-            async def callback_function(**kwargs: Any) -> None:
+            async def callback_function(...) -> None:
                 if unrecoverable_condition:
                     raise RejectMessage("Due to X, the message will never be accepted.")
     """
@@ -47,7 +47,7 @@ class RequeueMessage(Exception):
         Simple usage::
 
             @router.register("my.routing.key")
-            async def callback_function(**kwargs: Any) -> None:
+            async def callback_function(...) -> None:
                 if temporary_condition:
                     raise RejectMessage("Due to X, the message should be retried later")
     """

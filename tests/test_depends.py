@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
+# pylint: disable=no-value-for-parameter
 """Test helper utilities from utils.py."""
 import asyncio
 from asyncio import Event
@@ -19,8 +20,11 @@ from ramqp import AMQPSystem
 from ramqp.depends import Context
 from ramqp.depends import dependency_injected
 from ramqp.depends import from_context
+from ramqp.depends import get_context
+from ramqp.depends import get_message
 from ramqp.depends import get_payload_as_type
 from ramqp.depends import get_payload_bytes
+from ramqp.depends import handle_exclusively
 from ramqp.depends import Message
 from ramqp.depends import sleep_on_error
 from tests.amqp_helpers import payload2incoming
@@ -166,7 +170,6 @@ async def test_dependency_injected_message_and_context() -> None:
     amqp_message_payload = {"hello": "world"}
     amqp_message = payload2incoming(amqp_message_payload)
     amqp_context = {"key": "value"}
-    # pylint: disable=no-value-for-parameter
     args = await function(message=amqp_message, context=amqp_context)
     assert args["message"] == amqp_message
     assert args["context"] == amqp_context
@@ -192,6 +195,87 @@ async def test_context_amqp(amqp_test: Callable) -> None:
 
     await amqp_test(callback, post_start=post_start)
     assert call_args["context"] is context
+
+
+async def test_handle_exclusively_unrelated_asynchronously() -> None:
+    """Test that two unrelated calls work asynchronously."""
+
+    @dependency_injected
+    async def handler(
+        event: Annotated[Event, Depends(get_context)],
+        _: Annotated[None, Depends(handle_exclusively(get_message))],
+    ) -> None:
+        event.set()
+        await Event().wait()  # wait forever
+
+    # Call handler
+    message_1 = payload2incoming({"hello": "world"})
+    event_1_set = Event()
+    task_1 = asyncio.create_task(handler(message=message_1, context=event_1_set))
+
+    # Call handler again, with a different message
+    message_2 = payload2incoming({"goodbye": "world"})
+    event_2_set = Event()
+    task_2 = asyncio.create_task(handler(message=message_2, context=event_2_set))
+
+    # Check that both task_1 and task_2 are running
+    await asyncio.wait_for(event_1_set.wait(), timeout=1)
+    await asyncio.wait_for(event_2_set.wait(), timeout=1)
+    # If the calls were indeed asynchronous they would both run and .set() their
+    # events, but never finish due to the infinite wait.
+    assert not task_1.done()
+    assert not task_2.done()
+    task_1.cancel()
+    task_2.cancel()
+
+
+async def test_handle_exclusively_related_blocking() -> None:
+    """Test that the second call is blocked."""
+
+    @dependency_injected
+    async def handler(
+        context: Annotated[list[Event], Depends(get_context)],
+        _: Annotated[None, Depends(handle_exclusively(get_message))],
+    ) -> None:
+        set_event, wait_event = context
+        set_event.set()
+        await wait_event.wait()
+
+    message = payload2incoming({"wwww": "world"})  # only one message
+
+    # Call handler
+    event_1_set = Event()
+    event_1_wait = Event()
+    task_1 = asyncio.create_task(
+        handler(message=message, context=[event_1_set, event_1_wait])
+    )
+
+    # Wait for task_1 to be running (but not finished)
+    await asyncio.wait_for(event_1_set.wait(), timeout=1)
+
+    # Call handler again, with the same message
+    event_2_set = Event()
+    event_2_wait = Event()
+    task_2 = asyncio.create_task(
+        handler(message=message, context=[event_2_set, event_2_wait])
+    )  # blocked
+
+    # Sleep to ensure that task_2 would run if allowed by handle_exclusively
+    await asyncio.sleep(0.1)
+
+    # Check that task_2 did not run
+    assert not event_2_set.is_set()
+
+    # Allow task_1 to finish
+    event_1_wait.set()
+    await asyncio.wait_for(task_1, timeout=1)
+    assert task_1.done()
+
+    # task_2 should run and finish now
+    await asyncio.wait_for(event_2_set.wait(), timeout=1)
+    event_2_wait.set()
+    await asyncio.wait_for(task_2, timeout=1)
+    assert task_2.done()
 
 
 async def test_sleep_on_error(monkeypatch: MonkeyPatch) -> None:

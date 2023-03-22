@@ -4,10 +4,8 @@
 import asyncio
 from collections import defaultdict
 from collections.abc import AsyncGenerator
-from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Hashable
-from contextlib import asynccontextmanager
 from contextlib import AsyncExitStack
 from functools import wraps
 from typing import Annotated
@@ -205,53 +203,49 @@ def get_payload_as_type(type_: type[T]) -> Callable[..., T]:
     return inner
 
 
-def handle_exclusively(key: Callable[..., Hashable]) -> Callable:
-    """Avoids race conditions in handlers by ensuring exclusivity for arguments.
+H = TypeVar("H", bound=Hashable)
 
-    This decorator is used to ensure that the "same" message cannot be handled by a
-    message handler more than once at the same time. Here, the "same" message refers
-    to a message with arguments which would make the handling functionally identical,
-    e.g. a MO message with identical `uuid` and `object_uuid`.
+
+def handle_exclusively(key: Callable[..., H]) -> Callable:
+    """Avoids race conditions in handlers by ensuring exclusivity based on key.
+
+    This dependency is used to ensure that the "same" message cannot be handled by a
+    message handler more than once at the same time. Here, the "same" message is
+    defined by the key function given as argument. If a handler depends on multiple
+    handle_exclusively, it needs to obtain the lock for each of them before proceeding.
 
     Examples:
         Simple usage::
 
-            @handle_exclusively(key=lambda x, y, z: x, y)
-            async def f(x, y, z):
-                pass
-
-            await f(x=1, y=2, z=8)
-            await f(x=3, y=4, z=8)  # accepted
-            await f(x=1, y=2, z=9)  # blocked
+                @dependency_injected
+                async def handler(
+                    _: Annotated[None, Depends(handle_exclusively(get_routing_key))],
+                    msg: Annotated[Message, Depends(handle_exclusively(get_message))],
+                ):
+                    pass
 
     Args:
-        key: A custom key function returning the arguments considered when determining
-             exclusivity.
+        key: A custom key function returning lock exclusivity key. Note that this
+             function can specify Dependencies itself.
 
     Returns:
-        Decorator to be applied to callback functions.
+        A wrapper which yields the result of the key function.
     """
-    locks: DefaultDict[Hashable, anyio.Lock] = defaultdict(anyio.Lock)
+    locks: DefaultDict[H, anyio.Lock] = defaultdict(anyio.Lock)
 
-    @asynccontextmanager
-    async def named_lock(key: Hashable) -> AsyncGenerator[None, None]:
-        lock = locks[key]
+    @wraps(key)
+    async def wrapper(*args: Any, **kwargs: Any) -> AsyncGenerator[H, None]:
+        key_value = key(*args, **kwargs)
+        lock = locks[key_value]
         async with lock:
             try:
-                yield
+                yield key_value
             finally:
-                # Garbage collect lock if no others are waiting to acquire.
-                # This MUST be done before we release the lock.
+                # Garbage collect lock if no others are waiting to acquire. This MUST
+                # be done before we release the lock, and works since the control is
+                # asynchronous instead of truly concurrent.
                 if not lock.statistics().tasks_waiting:
-                    del locks[key]
-
-    def wrapper(coro: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
-        @wraps(coro)
-        async def wrapped(*args: Any, **kwargs: Any) -> T:
-            async with named_lock(key=key(*args, **kwargs)):
-                return await coro(*args, **kwargs)
-
-        return wrapped
+                    del locks[key_value]
 
     return wrapper
 
