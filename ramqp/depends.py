@@ -285,3 +285,6 @@ def sleep_on_error(delay: int = 30) -> Callable[[], AsyncGenerator[None, None]]:
             raise
 
     return inner
+
+
+SleepOnError = Annotated[None, Depends(sleep_on_error())]
