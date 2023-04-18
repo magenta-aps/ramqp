@@ -20,7 +20,7 @@ from ramqp.depends import get_routing_key
 from ramqp.utils import CallbackType
 
 # >>> print("\n".join(((f"\"{'.'.join(x)}\"," for x in itertools.product(["employee", "org_unit", "*"], ["address", "association", "employee", "engagement", "it", "kle", "leave", "manager", "owner", "org_unit", "related_unit", "role", "*"], ["create", "edit", "terminate", "refresh", "*"])))))  # noqa: E501
-_MORoutingKey = Literal[
+_MORoutingKeyOld = Literal[
     "employee.address.create",
     "employee.address.edit",
     "employee.address.terminate",
@@ -217,7 +217,27 @@ _MORoutingKey = Literal[
     "*.*.refresh",
     "*.*.*",
 ]
-MORoutingKey = Annotated[_MORoutingKey, Depends(get_routing_key)]
+
+_MORoutingKey = Literal[
+    "address",
+    "association",
+    "class",
+    "engagement",
+    "facet",
+    "itsystem",
+    "ituser",
+    "kle",
+    "leave",
+    "manager",
+    "manager",
+    "org_unit",
+    "owner",
+    "person",
+    "related_unit",
+    "role",
+]
+
+MORoutingKey = Annotated[_MORoutingKey | _MORoutingKeyOld, Depends(get_routing_key)]
 
 
 class _PayloadType(BaseModel):
