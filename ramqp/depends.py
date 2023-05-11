@@ -4,8 +4,10 @@
 import asyncio
 from collections import defaultdict
 from collections.abc import AsyncGenerator
+from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Hashable
+from contextlib import asynccontextmanager
 from contextlib import AsyncExitStack
 from functools import wraps
 from typing import Annotated
@@ -246,6 +248,42 @@ def handle_exclusively(key: Callable[..., H]) -> Callable:
                 # asynchronous instead of truly concurrent.
                 if not lock.statistics().tasks_waiting:
                     del locks[key_value]
+
+    return wrapper
+
+
+def handle_exclusively_decorator(key: Callable[..., Hashable]) -> Callable:
+    """Avoids race conditions in handlers by ensuring exclusivity based on key.
+
+    Basic wrapper for handle_exclusively, allowing it to work as a function decorator.
+
+    Examples:
+        Simple usage::
+
+            @handle_exclusively_decorator(key=lambda x, y, z: x, y)
+            async def f(x, y, z):
+                pass
+
+            await f(x=1, y=2, z=8)
+            await f(x=3, y=4, z=8)  # accepted
+
+    Args:
+        key: A custom key function returning the arguments considered when determining
+            exclusivity.
+
+    Returns:
+        Decorator to be applied to callback functions.
+    """
+
+    exclusive_context_manager = asynccontextmanager(handle_exclusively(key=key))
+
+    def wrapper(coro: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+        @wraps(coro)
+        async def wrapped(*args: Any, **kwargs: Any) -> T:
+            async with exclusive_context_manager(*args, **kwargs):
+                return await coro(*args, **kwargs)
+
+        return wrapped
 
     return wrapper
 
