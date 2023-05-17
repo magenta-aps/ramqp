@@ -255,6 +255,8 @@ class _PayloadType(BaseModel):
 
 
 PayloadType = Annotated[_PayloadType, Depends(get_payload_as_type(_PayloadType))]
+# The new MO amqp system payloads are just uuids
+PayloadUUID = Annotated[UUID, Depends(get_payload_as_type(UUID))]
 
 
 class MORouter(AbstractRouter):
