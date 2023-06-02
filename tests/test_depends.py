@@ -4,6 +4,7 @@
 # pylint: disable=no-value-for-parameter,invalid-name,unused-argument
 """Test helper utilities from utils.py."""
 import asyncio
+import time
 from asyncio import Event
 from collections.abc import AsyncIterator
 from collections.abc import Callable
@@ -27,6 +28,7 @@ from ramqp.depends import get_payload_bytes
 from ramqp.depends import handle_exclusively
 from ramqp.depends import handle_exclusively_decorator
 from ramqp.depends import Message
+from ramqp.depends import rate_limit
 from ramqp.depends import RoutingKey
 from ramqp.depends import sleep_on_error
 from tests.amqp_helpers import payload2incoming
@@ -380,3 +382,78 @@ async def test_dont_sleep_on_success(monkeypatch: MonkeyPatch) -> None:
 
     message = payload2incoming({"hello": "world"})
     await function(message=message, context={})
+
+
+async def test_rate_limit_same_message_blocking() -> None:
+    """Test that rate-limiting is applied to the same message."""
+
+    finish_times = []
+
+    @dependency_injected
+    async def handler(_: Annotated[None, Depends(rate_limit(delay=2))]) -> None:
+        finish_times.append(time.time())
+
+    message = payload2incoming({"hello": "world"})
+
+    # Call handler with the same message
+    task_1 = asyncio.create_task(handler(message=message, context={}))
+    task_2 = asyncio.create_task(handler(message=message, context={}))
+
+    await asyncio.wait_for(task_1, timeout=3)
+    await asyncio.wait_for(task_2, timeout=3)
+
+    # Check that the calls finished more than the rate-limit delay time apart
+    finish_1, finish_2, *_ = finish_times
+    assert finish_2 - finish_1 > 2
+
+
+async def test_rate_limit_different_messages_non_blocking() -> None:
+    """Test that rate-limiting is not applied to two different messages."""
+
+    finish_times = []
+
+    @dependency_injected
+    async def handler(_: Annotated[None, Depends(rate_limit(delay=2))]) -> None:
+        finish_times.append(time.time())
+
+    # Call handler
+    message_1 = payload2incoming({"hello": "world"})
+    task_1 = asyncio.create_task(handler(message=message_1, context={}))
+
+    # Call handler again, but with a different message
+    message_2 = payload2incoming({"goodbye": "world"})
+    task_2 = asyncio.create_task(handler(message=message_2, context={}))
+
+    await asyncio.wait_for(task_1, timeout=3)
+    await asyncio.wait_for(task_2, timeout=3)
+
+    # Check that the calls finished less than the rate-limit delay time apart
+    finish_1, finish_2, *_ = finish_times
+    assert finish_2 - finish_1 < 2
+
+
+async def test_rate_limit_different_handlers_non_blocking() -> None:
+    """Test that rate-limiting is not applied to two handlers with the same message."""
+
+    finish_times = []
+
+    @dependency_injected
+    async def handler_1(_: Annotated[None, Depends(rate_limit(delay=2))]) -> None:
+        finish_times.append(time.time())
+
+    @dependency_injected
+    async def handler_2(_: Annotated[None, Depends(rate_limit(delay=2))]) -> None:
+        finish_times.append(time.time())
+
+    message = payload2incoming({"hello": "world"})
+
+    # Call both handlers with the same message
+    task_1 = asyncio.create_task(handler_1(message=message, context={}))
+    task_2 = asyncio.create_task(handler_2(message=message, context={}))
+
+    await asyncio.wait_for(task_1, timeout=3)
+    await asyncio.wait_for(task_2, timeout=3)
+
+    # Check that the calls finished less than the rate-limit delay time apart
+    finish_1, finish_2, *_ = finish_times
+    assert finish_2 - finish_1 < 2
