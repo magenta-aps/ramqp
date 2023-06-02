@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """This module implement FastAPI dependency injection for RAMQP."""
 import asyncio
+from asyncio import Task
 from collections import defaultdict
 from collections.abc import AsyncGenerator
 from collections.abc import Awaitable
@@ -9,6 +10,7 @@ from collections.abc import Callable
 from collections.abc import Hashable
 from contextlib import asynccontextmanager
 from contextlib import AsyncExitStack
+from contextlib import suppress
 from functools import wraps
 from typing import Annotated
 from typing import Any
@@ -80,7 +82,11 @@ def dependency_injected(function: Callable) -> Callable:
                     "type": "http",
                     "headers": [],
                     "query_string": "",
-                    "state": {"context": context, "message": message},
+                    "state": {
+                        "context": context,
+                        "message": message,
+                        "callback": function,
+                    },
                 }
             )
             dependant = get_dependant(path="", call=function)
@@ -156,6 +162,21 @@ def get_message(state: State) -> IncomingMessage:
 
 
 Message = Annotated[IncomingMessage, Depends(get_message)]
+
+
+def get_callback(state: State) -> Callable:
+    """Extract the callback function from the request state.
+
+    Args:
+        state: The request state from within the request.
+
+    Returns:
+        The callback function for this request.
+    """
+    return cast(Callable, state.callback)
+
+
+Callback = Annotated[Callable, Depends(get_callback)]
 
 
 def get_routing_key(message: Message) -> str:
@@ -288,41 +309,39 @@ def handle_exclusively_decorator(key: Callable[..., Hashable]) -> Callable:
     return wrapper
 
 
-def sleep_on_error(delay: int = 30) -> Callable[[], AsyncGenerator[None, None]]:
-    """Construct an pseudo-context manager which delays returning on errors.
+def rate_limit(
+    delay: int = 30,
+) -> Callable[[Message, Callback], AsyncGenerator[None, None]]:
+    """Rate-limit processing of the same message by `delay` seconds.
 
-    This is used to prevent race-conditions on writes to MO/LoRa, when the upload times
-    out initially but is completed by the backend afterwards. The sleep ensures that
-    the AMQP message is not retried immediately, causing the handler to act on
-    information which could become stale by the queued write. This happens because the
-    backend does not implement fairness of requests, such that read operations can
-    return soon-to-be stale data while a write operation is queued on another thread.
-
-    Specifically, duplicate objects would be created when a write operation failed to
-    complete within the timeout (but would be completed later), and the handler, during
-    retry, read an outdated list of existing objects, and thus dispatched another
-    (duplicate) write operation.
-
-    See: https://redmine.magenta-aps.dk/issues/51949#note-23.
+    Rate-limiting is applied per-handler, so different message callback handlers can
+    process the same message simultaneously, without any limits.
 
     Args:
-        delay: The delay in seconds to sleep for.
+        delay: Number of seconds to wait between processing the same message.
 
-    Raises:
-        Whatever exception was thrown by the decorated function.
-
-    Returns:
-        A Coroutine pseudo-context manager which sleeps on any exception.
+    Returns: A dependency-injectable rate-limiter.
     """
+    tasks: dict[tuple[str, int], Task] = {}
 
-    async def inner() -> AsyncGenerator[None, None]:
-        try:
-            yield
-        except Exception:  # pylint: disable=broad-except
+    async def inner(message: Message, callback: Callback) -> AsyncGenerator[None, None]:
+        key = (message.message_id, id(callback))
+
+        with suppress(KeyError):
+            task = tasks[key]
+            await task
+
+        async def rate_limiter() -> None:
             await asyncio.sleep(delay)
-            raise
+            tasks.pop(key)
+
+        if key not in tasks:
+            task = asyncio.create_task(rate_limiter())
+            tasks[key] = task
+
+        yield
 
     return inner
 
 
-SleepOnError = Annotated[None, Depends(sleep_on_error())]
+RateLimit = Annotated[None, Depends(rate_limit())]

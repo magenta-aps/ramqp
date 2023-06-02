@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """AMQP Helper methods."""
 import json
+import secrets
 
 from aio_pika import DeliveryMode
 from aio_pika import IncomingMessage
@@ -60,7 +61,7 @@ def message2delivered(message: Message) -> DeliveredMessage:
                         "priority": 0,
                         "correlation_id": None,
                         "reply_to": None,
-                        "message_id": "6800cb934bf94cc68009fe04ac91c972",
+                        "message_id": secrets.token_hex(),
                         "timestamp": None,
                         "message_type": None,
                         "user_id": None,
