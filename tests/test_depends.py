@@ -15,7 +15,6 @@ from typing import Any
 import pytest
 from fastapi import Depends
 from pydantic import BaseModel
-from pytest import MonkeyPatch
 
 from ramqp import AMQPSystem
 from ramqp.depends import Context
@@ -30,7 +29,6 @@ from ramqp.depends import handle_exclusively_decorator
 from ramqp.depends import Message
 from ramqp.depends import rate_limit
 from ramqp.depends import RoutingKey
-from ramqp.depends import sleep_on_error
 from tests.amqp_helpers import payload2incoming
 
 
@@ -345,43 +343,6 @@ async def test_handle_exclusively_decorator_related_blocking() -> None:
     e2_wait.set()
     await asyncio.wait_for(t2, timeout=1)
     assert t2.done()
-
-
-async def test_sleep_on_error(monkeypatch: MonkeyPatch) -> None:
-    """Test that the decorator sleeps if an error is thrown."""
-
-    @dependency_injected
-    async def function(_: Annotated[None, Depends(sleep_on_error(delay=10))]) -> None:
-        raise ValueError("no thanks")
-
-    sleep_event = Event()
-
-    async def fake_sleep(*_: Any, **__: Any) -> None:
-        sleep_event.set()
-
-    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
-
-    with pytest.raises(ValueError, match="no thanks"):
-        message = payload2incoming({"hello": "world"})
-        await function(message=message, context={})
-
-    assert sleep_event.is_set()
-
-
-async def test_dont_sleep_on_success(monkeypatch: MonkeyPatch) -> None:
-    """Test that the decorator does not sleep if there are no errors."""
-
-    @dependency_injected
-    async def function(_: Annotated[None, Depends(sleep_on_error(delay=10))]) -> None:
-        return None
-
-    async def fake_sleep(*_: Any, **__: Any) -> None:
-        assert False, "we should not sleep on success"
-
-    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
-
-    message = payload2incoming({"hello": "world"})
-    await function(message=message, context={})
 
 
 async def test_rate_limit_same_message_blocking() -> None:

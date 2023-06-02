@@ -309,46 +309,6 @@ def handle_exclusively_decorator(key: Callable[..., Hashable]) -> Callable:
     return wrapper
 
 
-def sleep_on_error(delay: int = 30) -> Callable[[], AsyncGenerator[None, None]]:
-    """Construct an pseudo-context manager which delays returning on errors.
-
-    This is used to prevent race-conditions on writes to MO/LoRa, when the upload times
-    out initially but is completed by the backend afterwards. The sleep ensures that
-    the AMQP message is not retried immediately, causing the handler to act on
-    information which could become stale by the queued write. This happens because the
-    backend does not implement fairness of requests, such that read operations can
-    return soon-to-be stale data while a write operation is queued on another thread.
-
-    Specifically, duplicate objects would be created when a write operation failed to
-    complete within the timeout (but would be completed later), and the handler, during
-    retry, read an outdated list of existing objects, and thus dispatched another
-    (duplicate) write operation.
-
-    See: https://redmine.magenta-aps.dk/issues/51949#note-23.
-
-    Args:
-        delay: The delay in seconds to sleep for.
-
-    Raises:
-        Whatever exception was thrown by the decorated function.
-
-    Returns:
-        A Coroutine pseudo-context manager which sleeps on any exception.
-    """
-
-    async def inner() -> AsyncGenerator[None, None]:
-        try:
-            yield
-        except Exception:  # pylint: disable=broad-except
-            await asyncio.sleep(delay)
-            raise
-
-    return inner
-
-
-SleepOnError = Annotated[None, Depends(sleep_on_error())]
-
-
 def rate_limit(
     delay: int = 30,
 ) -> Callable[[Message, Callback], AsyncGenerator[None, None]]:
