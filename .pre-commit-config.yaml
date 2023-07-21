@@ -19,36 +19,6 @@ repos:
     hooks:
       - id: reorder-python-imports
 
-  - repo: https://github.com/PyCQA/pylint
-    rev: v2.16.2
-    hooks:
-      - id: pylint
-        additional_dependencies:
-          # - "pylint-pytest"
-          - "pylint-pydantic"
-        args:
-          # Load our plugins
-          # - '--load-plugins=pylint_pytest'
-          - '--load-plugins=pylint_pydantic'
-          # Ignore 'import-error' and 'no-name-in-module'
-          # As we do not want to install all dependencies under pre-commit
-          - '--disable=E0401'
-          - '--disable=E0611'
-          # Ignore 'wrong-import-order'
-          # reorder-python-imports decides the order, if pylint disagrees ¯\_(ツ)_/¯
-          - '--disable=C0411'
-          # Ignore import related issues in general
-          - '--ignore-imports=y'
-          # Ignore 'fixme'
-          # We allow TODOs in the source code
-          - '--disable=W0511'
-          # Allow .format() instead of enforcing f-strings
-          - '--disable=C0209'
-          # Ignore too long lines; black decides that
-          - '--disable=C0301'
-          # With 5 or more lines of duplicate code, we should refactor it
-          - '--min-similarity-lines=5'
-
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
@@ -58,11 +28,11 @@ repos:
           - pyproject-flake8
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.1
+    rev: v1.4.1
     hooks:
       - id: mypy
         additional_dependencies:
-          - pydantic
+          - pydantic==1.10.11
 
   - repo: https://github.com/fsfe/reuse-tool
     rev: v1.1.2
@@ -83,10 +53,3 @@ repos:
         args: [ "--convention=google", "--add-ignore=D1" ]
         additional_dependencies:
           - toml
-
-  - repo: https://github.com/dosisod/refurb
-    rev: v1.5.0
-    hooks:
-      - id: refurb
-        additional_dependencies:
-          - pydantic

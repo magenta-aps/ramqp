@@ -230,15 +230,16 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
         if self.router.registry:
             assert settings.queue_prefix is not None
 
+        url = settings.get_url()
         logger.info(
             "Establishing AMQP connection",
-            scheme=settings.url.scheme,
-            user=settings.url.user,
-            host=settings.url.host,
-            port=settings.url.port,
-            path=settings.url.path,
+            scheme=url.scheme,
+            user=url.user,
+            host=url.host,
+            port=url.port,
+            path=url.path,
         )
-        self._connection = await connect_robust(settings.url)
+        self._connection = await connect_robust(url)
         _setup_connection_metrics(self._connection)
 
         logger.info("Creating AMQP channel")
