@@ -27,6 +27,7 @@ from aio_pika.abc import AbstractQueue
 from aio_pika.abc import AbstractRobustChannel
 from aio_pika.abc import AbstractRobustConnection
 from aiormq import ChannelPreconditionFailed
+from fastapi.encoders import jsonable_encoder
 from more_itertools import all_unique
 from more_itertools import one
 
@@ -121,7 +122,7 @@ class AbstractPublishMixin:
 
     _exchange: AbstractExchange | None
 
-    async def _publish_message(self, routing_key: Any, payload: dict) -> None:
+    async def _publish_message(self, routing_key: Any, payload: Any) -> None:
         """Publish a message to the given routing key.
 
         Args:
@@ -137,7 +138,9 @@ class AbstractPublishMixin:
         # Allow using any custom object as routing key as long as it implements __str__
         routing_key = str(routing_key)
         with _handle_publish_metrics(routing_key):
-            message = Message(body=json.dumps(payload).encode("utf-8"))
+            message = Message(
+                body=json.dumps(jsonable_encoder(payload)).encode("utf-8")
+            )
             await self._exchange.publish(routing_key=routing_key, message=message)
 
 
