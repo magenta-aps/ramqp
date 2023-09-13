@@ -121,19 +121,28 @@ class AbstractPublishMixin:
     """
 
     _exchange: AbstractExchange | None
+    _channel: AbstractRobustChannel | None = None
 
-    async def _publish_message(self, routing_key: Any, payload: Any) -> None:
+    async def _publish_message(
+        self, routing_key: Any, payload: Any, exchange: str | None = None
+    ) -> None:
         """Publish a message to the given routing key.
 
         Args:
             routing_key: The routing key to send the message to.
             payload: The message payload.
+            exchange: Defaults to the configured exchange if not given.
 
         Raises:
             ValueError: If the AMQPSystem has not been started yet.
         """
-        if self._exchange is None:
+        if self._channel is None or self._exchange is None:
             raise ValueError("Must call start() before publish message!")
+
+        if exchange is None or exchange == self._exchange.name:
+            publish_exchange = self._exchange
+        else:
+            publish_exchange = await self._channel.get_exchange(exchange, ensure=False)
 
         # Allow using any custom object as routing key as long as it implements __str__
         routing_key = str(routing_key)
@@ -141,7 +150,7 @@ class AbstractPublishMixin:
             message = Message(
                 body=json.dumps(jsonable_encoder(payload)).encode("utf-8")
             )
-            await self._exchange.publish(routing_key=routing_key, message=message)
+            await publish_exchange.publish(routing_key=routing_key, message=message)
 
 
 # pylint: disable=invalid-name
