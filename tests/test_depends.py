@@ -47,7 +47,7 @@ async def test_depends_errors() -> None:
         return None
 
     message = payload2incoming({"hello": "world"})
-    with pytest.raises(ValueError, match="MissingError"):
+    with pytest.raises(ValueError, match="value_error.missing"):
         await function(message=message, context={})
 
 
