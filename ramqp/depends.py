@@ -78,7 +78,6 @@ def dependency_injected(function: Callable) -> Callable:
         async with AsyncExitStack() as stack:
             request = Request(
                 {
-                    "fastapi_astack": stack,
                     "type": "http",
                     "headers": [],
                     "query_string": "",
@@ -92,7 +91,9 @@ def dependency_injected(function: Callable) -> Callable:
             dependant = get_dependant(path="", call=function)
 
             values, errors, *_ = await solve_dependencies(
-                request=request, dependant=dependant
+                request=request,
+                dependant=dependant,
+                async_exit_stack=stack,
             )
             if errors:
                 # TODO: Utilize Python 3.11 ExceptionGroup?
