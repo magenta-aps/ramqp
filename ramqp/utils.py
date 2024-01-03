@@ -51,3 +51,16 @@ class RequeueMessage(Exception):
                 if temporary_condition:
                     raise RejectMessage("Due to X, the message should be retried later")
     """
+
+
+class AcknowledgeMessage(Exception):
+    """Raise to acknowledge a message removing it from the queue.
+
+    Examples:
+        Simple usage::
+
+            @router.register("my.routing.key")
+            async def callback_function(...) -> None:
+                if expected_condition:
+                    raise AcknowledgeMessage("Due to X, the message should be acked")
+    """

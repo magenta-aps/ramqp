@@ -40,6 +40,7 @@ from .metrics import _setup_connection_metrics
 from .metrics import _setup_periodic_metrics
 from .metrics import callbacks_registered
 from .metrics import routes_bound
+from .utils import AcknowledgeMessage
 from .utils import CallbackType
 from .utils import function_to_name
 from .utils import RejectMessage
@@ -445,6 +446,8 @@ class AbstractAMQPSystem(AbstractAsyncContextManager, Generic[TRouter]):
                     except RejectMessage:
                         await message.reject(requeue=False)
                         log.info("Rejected message")
+                    except AcknowledgeMessage:
+                        return
                     except RequeueMessage:
                         await message.reject(requeue=True)
                         log.info("Requested requeueing of message")

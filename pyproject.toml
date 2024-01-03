@@ -18,7 +18,7 @@ structlog = "^23.1.0"
 prometheus-client = ">=0.16,<0.18"
 pydantic = "^1.10.5"
 more-itertools = "^9.1.0"
-fastapi = ">=0.95.0,<1.0"
+fastapi = ">=0.108.0,<1.0"
 anyio = "^3.6.2"
 ra-utils = "^1.12.4"
 
