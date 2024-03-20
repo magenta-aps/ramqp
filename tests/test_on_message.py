@@ -11,6 +11,7 @@ from aio_pika import IncomingMessage
 from more_itertools import one
 
 from ramqp.depends import Message
+from ramqp.utils import AcknowledgeMessage
 from ramqp.utils import RejectMessage
 from ramqp.utils import RequeueMessage
 
@@ -35,6 +36,7 @@ async def test_happy_path(amqp_test: Callable) -> None:
         (ValueError, 5),
         (RequeueMessage, 5),
         (RejectMessage, 1),
+        (AcknowledgeMessage, 1),
     ],
 )
 async def test_callback_retrying_and_rejection(
