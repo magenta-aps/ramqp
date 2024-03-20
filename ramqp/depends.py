@@ -11,6 +11,7 @@ from collections.abc import Hashable
 from contextlib import asynccontextmanager
 from contextlib import AsyncExitStack
 from contextlib import suppress
+from functools import cache
 from functools import wraps
 from typing import Annotated
 from typing import Any
@@ -134,6 +135,7 @@ def get_context(state: State) -> Any:
 Context = Annotated[Any, Depends(get_context)]
 
 
+@cache
 def from_context(field: str) -> Callable[..., Any]:
     """Construct a Callable which extracts 'field' from the application context.
 
