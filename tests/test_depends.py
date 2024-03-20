@@ -66,6 +66,17 @@ async def test_from_context() -> None:
     assert "'c'" in str(exc_info.value)
 
 
+async def test_from_context_caching() -> None:
+    """Test that from_context always returns the exact same inner function."""
+    assert from_context("a") == from_context("a")
+    assert from_context("a") != from_context("b")
+    assert from_context("b") == from_context("b")
+
+    assert id(from_context("a")) == id(from_context("a"))
+    assert id(from_context("a")) != id(from_context("b"))
+    assert id(from_context("b")) == id(from_context("b"))
+
+
 async def test_payload_as_x() -> None:
     """Test get_payload_bytes/get_payload_as_type works as expected."""
     amqp_message_payload = {"hello": "world"}
